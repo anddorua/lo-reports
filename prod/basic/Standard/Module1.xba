@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script:module PUBLIC "-//OpenOffice.org//DTD OfficeDocument 1.0//EN" "module.dtd">
+<script:module xmlns:script="http://openoffice.org/2000/script" script:name="Module1" script:language="StarBasic">REM  *****  BASIC  *****
+
+Sub Main
+print &quot;Hello&quot;
+End Sub
+
+
+sub Save
+rem ----------------------------------------------------------------------
+rem define variables
+dim document   as object
+dim dispatcher as object
+rem ----------------------------------------------------------------------
+rem get access to the document
+document   = ThisComponent.CurrentController.Frame
+dispatcher = createUnoService(&quot;com.sun.star.frame.DispatchHelper&quot;)
+
+rem ----------------------------------------------------------------------
+dispatcher.executeDispatch(document, &quot;.uno:Save&quot;, &quot;&quot;, 0, Array())
+
+
+end sub
+
+sub runStarter
+  starter &quot;One&quot;, &quot;Two&quot;
+end sub
+
+sub aaaa
+	print returner(&quot;~/&quot;)
+end sub
+
+function returner(byval path as string)
+	Dim FileNo As Integer
+	Dim Filename As String
+	
+	Filename = path &amp; &quot;/data.txt&quot;            &apos; Define file name 
+	FileNo = FreeFile               &apos; Establish free file handle
+	
+	Open Filename For Output As #FileNo         &apos; Open file (writing mode)
+	Print #FileNo, &quot;This is a line of text&quot;      &apos; Save line 
+	Print #FileNo, &quot;This is another line of text&quot;   &apos; Save line 
+	Close #FileNo                  &apos; Close file
+end function
+
+sub starter(byval optional a as string, optional byval b as string)
+
+if ismissing(a) then
+  a = &quot;1&quot;
+endif
+if ismissing(b) then
+  b = &quot;2&quot;
+endif
+print &quot;hello:&quot;, a, b
+
+dim msg as new com.sun.star.logging.LogRecord
+msg.Message = a
+msg.Level = com.sun.star.logging.LogLevel.ALL
+
+dim obj as object
+obj = createUnoService(&quot;com.sun.star.logging.ConsoleHandler&quot;)
+obj.initialize(Array())
+obj.Level = com.sun.star.logging.LogLevel.ALL
+obj.publish(msg)
+
+end sub
+
+
+</script:module>
