@@ -42,4 +42,5 @@ return array(
     'Monolog\\' => array($vendorDir . '/monolog/monolog/src/Monolog'),
     'Module\\' => array($baseDir . '/modules'),
     'Extention\\' => array($baseDir . '/extentions'),
+    'App\\' => array($baseDir . '/classes'),
 );

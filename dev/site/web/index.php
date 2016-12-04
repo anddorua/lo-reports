@@ -1,11 +1,14 @@
 <?php
 
-ini_set('display_errors', 0);
+$isDebug = true;
 
-require_once __DIR__.'/../vendor/autoload.php';
+ini_set('display_errors', $isDebug ? 1 : 0);
 
-$app = require __DIR__.'/../src/app.php';
-//require __DIR__.'/../config/prod.php';
-require __DIR__.'/../config/dev.php';
-require __DIR__.'/../src/controllers.php';
+require_once __DIR__ . '/../vendor/autoload.php';
+
+require __DIR__ . '/../include/bootstrap.php';
+require __DIR__ . '/../include/mount_routes.php';
+require __DIR__ . '/../include/error_handling.php';
+
+/* @var $app Silex\Application */
 $app->run();

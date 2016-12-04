@@ -20,6 +20,7 @@ RUN apt-get update \
 	fonts-texgyre fonts-tlwg-purisa \
     && apt-get -q -y remove libreoffice-gnome
 EXPOSE 8997
+#    && apt-get -q -y remove libreoffice-gnome # removed
 
 RUN adduser --home=/opt/libreoffice --disabled-password --gecos "" --shell=/bin/bash libreoffice
 # replace default setup with a one disabling logos by default

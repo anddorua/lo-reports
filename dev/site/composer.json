@@ -26,7 +26,8 @@
     "autoload": {
         "psr-4": {
             "Module\\": "modules/",
-            "Extention\\": "extentions/"
+            "Extention\\": "extentions/",
+            "App\\": "classes/"
             },
         "psr-0": { "": "src/" }
     },

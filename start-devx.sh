@@ -12,6 +12,7 @@ docker run -d \
 	--name reports-dev \
 	-e "ALIAS_DOMAIN=$ALIAS_DOMAIN" \
 	-e DISPLAY=$DISPLAY \
+	--net=host \
 	nginx-php-lo
 # run -ti --rm \
 #	-v $(pwd)/dev/site:/app \
