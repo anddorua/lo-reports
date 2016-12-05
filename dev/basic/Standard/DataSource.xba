@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script:module PUBLIC "-//OpenOffice.org//DTD OfficeDocument 1.0//EN" "module.dtd">
+<script:module xmlns:script="http://openoffice.org/2000/script" script:name="DataSource" script:language="StarBasic">REM  *****  BASIC  *****
+
+Option Compatible
+Option ClassModule
+
+Option Explicit
+
+private _dataDir as string &apos; without trailing slash
+private _workDir as string &apos; without trailing slash
+private _storageDocument as Object
+private _collectorName as string
+
+private Sub Class_Initialize()
+    _dataDir = &quot;&quot;
+    _workDir = &quot;&quot;
+    _collectorName = &quot;tmp_collector&quot;
+End Sub
+
+Private Sub Class_Terminate()
+	CloseCollector
+end sub
+
+Public Sub CloseCollector()
+	if isObject(_storageDocument) then
+		_storageDocument.close(0)
+    endif
+end sub
+
+Public Property Set dataDir (ByVal pValue As String)
+   _dataDir = pValue
+End property
+
+Public Property Set workDir (ByVal pValue As String)
+   _workDir = pValue
+End property
+
+public function GetCell(byval sheet as string, byval column as string, byval line as integer)
+	dim sheetObject as Object
+	dim colIndex as integer
+	on error goto ErrorHandler
+	sheetObject = _storageDocument.Sheets.getByName(sheet)
+	colIndex = getColumnIndex(sheetObject, column)
+	if colIndex &gt;= 0 then
+		GetCell = sheetObject.getCellByPosition(colIndex, line)
+	else
+		GetCell = null
+	endif
+	exit function
+ErrorHandler:
+	GetCell = null
+end function
+
+private function getColumnIndex(byref sheet as Object, byref column as string)
+	dim i as integer
+	dim cell as Object
+	i = -1
+	do 
+		i = i + 1
+		cell = sheet.getCellByPosition(i, 0)
+	loop while cell.String &lt;&gt; &quot;&quot; and cell.String &lt;&gt; column
+	if sheet.getCellByPosition(i, 0).String = column then
+		getColumnIndex = i
+	else
+		getColumnIndex = -1
+	endif
+end function
+
+Public Sub CollectData
+	&apos; create empty storage document
+	dim arg(2) as new com.sun.star.beans.PropertyValue
+	dim document   as object
+	dim dispatcher as object
+	dim fileProps(1) as new com.sun.star.beans.PropertyValue
+	dim args1(2) as new com.sun.star.beans.PropertyValue
+	dim collectorFileName as string
+	dim sFileName as string
+	dim csvFileURL as string
+	collectorFileName = _workDir &amp; GetPathSeparator() &amp; _collectorName &amp; &quot;.ods&quot;
+	_storageDocument = StarDesktop.loadComponentFromURL(&quot;private:factory/scalc&quot;, &quot;_blank&quot;, 0, arg())
+	subSaveAs(_storageDocument, collectorFileName)
+	
+	dispatcher = createUnoService(&quot;com.sun.star.frame.DispatchHelper&quot;)
+	sFileName = Dir(_dataDir &amp; GetPathSeparator(), 0) &apos;Get the first one
+	Do While (sFileName &lt;&gt; &quot;&quot;) &apos;While something found
+		
+		if fileExt(sFileName) = &quot;csv&quot; then
+			csvFileURL = ConvertToURL(_dataDir &amp; GetPathSeparator() &amp; sFileName)
+			fileProps(0).Name = &quot;FilterName&quot;
+			fileProps(0).Value = &quot;Text - txt - csv (StarCalc)&quot;
+			fileProps(1).Name = &quot;FilterOptions&quot;
+			fileProps(1).Value = &quot;44,34,76,1,,0,false,true,true,false&quot;
+			document = StarDesktop.loadComponentFromURL(csvFileUrl, &quot;_blank&quot;, 0, fileProps())		
+			
+			args1(0).Name = &quot;DocName&quot;
+			args1(0).Value = _collectorName
+			args1(1).Name = &quot;Index&quot;
+			args1(1).Value = 32767
+			args1(2).Name = &quot;Copy&quot;
+			args1(2).Value = true
+			
+			dispatcher.executeDispatch(document.CurrentController.Frame, &quot;.uno:Move&quot;, &quot;&quot;, 0, args1())
+			document.dispose()
+		endif
+		sFileName = Dir() &apos;Get the next one
+	Loop
+end sub
+
+private function fileExt(byval filename as string)
+	fileExt = LCase(Right(filename, 3))
+end function
+
+private sub subSaveAs(oDoc, sFile, optional sType)
+	dim sURL as string
+	sURL = convertToURL(sFile)
+	if isMissing(sType) then
+	   oDoc.storeAsURL(sURL, array())
+	else
+	  dim mFileType(0)
+	  mFileType(0) = createUnoStruct(&quot;com.sun.star.beans.PropertyValue&quot;)
+	  mFileType(0).Name = &quot;FilterName&quot;
+	  mFileType(0).Value = sType
+	  oDoc.storeAsURL(sURL, mFileType())
+	end if
+end sub
+
+</script:module>

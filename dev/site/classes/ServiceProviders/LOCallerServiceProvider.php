@@ -15,7 +15,7 @@ class LOCallerServiceProvider implements ServiceProviderInterface
     public function register(Container $app)
     {
         $app['lo_caller'] = function() use ($app) {
-            $loCaller = new LOCaller();
+            $loCaller = new LOCaller($app['reports.path']);
             return $loCaller;
         };
     }

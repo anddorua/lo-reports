@@ -3,4 +3,6 @@
 <library:library xmlns:library="http://openoffice.org/2000/library" library:name="Standard" library:readonly="false" library:passwordprotected="false">
  <library:element library:name="Module1"/>
  <library:element library:name="Logger"/>
+ <library:element library:name="DataSource"/>
+ <library:element library:name="copier"/>
 </library:library>

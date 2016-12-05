@@ -8,6 +8,28 @@ namespace App\Services;
  */
 class LOCaller
 {
+    const max_utime = 2000000;
+    const wait_quant = 50000;
+
+    private $reportDir;
+    private $dataDir;
+    private $dstDir;
+    private $cwd;
+
+    public function __construct($reportDir)
+    {
+        $this->reportDir = $reportDir;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getCwd()
+    {
+        return $this->cwd;
+    }
+
+
     public function callMacro($macroName)
     {
         $exec_out = [];
@@ -62,19 +84,43 @@ class LOCaller
         return $res;
     }
 
-    public function startMacro2($macroName)
+    private function createDirs()
     {
-        $max_utime = 2000000;
-        $wait_quant = 50000;
+        $this->cwd = sys_get_temp_dir() . '/' . uniqid('lo_');
+        $this->dataDir = $this->cwd . '/data';
+        $this->dstDir = $this->cwd . '/dst';
+        mkdir($this->cwd, 0755);
+        mkdir($this->dataDir, 0755);
+        mkdir($this->dstDir, 0755);
+        return $this->cwd;
+    }
+
+    public function removeDirs()
+    {
+        if (isset($this->dataDir)) {
+            array_map('unlink', glob($this->dataDir . "/*"));
+            rmdir($this->dataDir);
+        }
+        if (isset($this->dstDir)) {
+            array_map('unlink', glob($this->dstDir . "/*"));
+            rmdir($this->dstDir);
+        }
+        if (isset($this->cwd)) {
+            rmdir($this->cwd);
+        }
+    }
+
+    public function startMacro2($reportName)
+    {
         $descriptorspec = array(
             // 0 => array("pipe", "r"),  // stdin - канал, из которого дочерний процесс будет читать
             1 => array("pipe", "w"),  // stdout - канал, в который дочерний процесс будет записывать
             2 => array("file", "/tmp/error-output.txt", "a") // stderr - файл для записи
         );
 
-        $cwd = '/tmp';
+        $this->cwd = $this->createDirs();
 
-        $process = proc_open('exec soffice --invisible --nodefault --norestore "macro:///Standard.Module1.starter()"', $descriptorspec, $pipes, $cwd, null);
+        $process = proc_open('exec soffice --invisible --nodefault --norestore "macro:///Standard.Module1.starter(\"' . $reportName .'\", \"' . $this->reportDir . '\", \"' . $this->dataDir . '\", \"' . $this->dstDir . '\")"', $descriptorspec, $pipes, $this->cwd, null);
 
         $res = new \StdClass();
         $res->out = '';
@@ -96,13 +142,13 @@ class LOCaller
                 if ($status['running'] === false) {
                     break;
                 } else {
-                    if ($time_passed >= $max_utime && !$wait_for_terminate) {
+                    if ($time_passed >= self::max_utime && !$wait_for_terminate) {
                         proc_terminate($process);
                         $wait_for_terminate = true;
                         $res->error = 'forced termination';
                     }
-                    usleep($wait_quant);
-                    $time_passed += $wait_quant;
+                    usleep(self::wait_quant);
+                    $time_passed += self::wait_quant;
                 }
             } while (true);
 
@@ -117,6 +163,8 @@ class LOCaller
         } else {
             $res->error = 'process did not started';
         }
+
         return $res;
     }
+
 }

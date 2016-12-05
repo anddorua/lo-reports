@@ -6,12 +6,23 @@ Sub Main
 
 End Sub
 
-sub starter(byval optional a as string, optional byval b as string)
-	if ismissing(a) then
-	  a = &quot;1&quot;
+sub starter( _
+	optional byval reportName as string, _
+	optional byval reportDir as string, _
+	optional byval dataDir as string, _
+	optional byval dstDir as string)
+	
+	if ismissing(reportName) then
+	  reportName = &quot;&quot;
 	endif
-	if ismissing(b) then
-	  b = &quot;1&quot;
+	if ismissing(reportDir) then
+	  reportDir = &quot;&quot;
+	endif
+	if ismissing(dataDir) then
+	  dataDir = &quot;&quot;
+	endif
+	if ismissing(dstDir) then
+	  dstDir = &quot;&quot;
 	endif
 	
 	dim msg as new com.sun.star.logging.LogRecord
@@ -22,20 +33,109 @@ sub starter(byval optional a as string, optional byval b as string)
 	obj = createUnoService(&quot;com.sun.star.logging.ConsoleHandler&quot;)
 	obj.initialize(Array())
 	obj.Level = com.sun.star.logging.LogLevel.ALL
+
+	msg.Message = reportName
+	msg.Level = com.sun.star.logging.LogLevel.ALL
+	obj.publish(msg)
+
+	msg.Message = reportDir
+	msg.Level = com.sun.star.logging.LogLevel.ALL
+	obj.publish(msg)
+
+	msg.Message = dataDir
+	msg.Level = com.sun.star.logging.LogLevel.ALL
+	obj.publish(msg)
+
+	msg.Message = dstDir
+	msg.Level = com.sun.star.logging.LogLevel.ALL
 	obj.publish(msg)
 end sub
 
-sub starter2(byval optional a as string, optional byval b as string)
-	if ismissing(a) then
-	  a = &quot;1&quot;
+sub starter2( _
+	optional byval reportName as string, _
+	optional byval reportDir as string, _
+	optional byval dataDir as string, _
+	optional byval dstDir as string)
+	
+	if ismissing(reportName) then
+	  reportName = &quot;&quot;
 	endif
-	if ismissing(b) then
-	  b = &quot;2&quot;
+	if ismissing(reportDir) then
+	  reportDir = &quot;&quot;
+	endif
+	if ismissing(dataDir) then
+	  dataDir = &quot;&quot;
+	endif
+	if ismissing(dstDir) then
+	  dstDir = &quot;&quot;
 	endif
 	
-&apos; do something....
-  Logg(&quot;This is log message.&quot;,  com.sun.star.logging.LogLevel.ALL) &apos; log level is the same as the threshold, 
-  Logg(&quot;This message is not shown.&quot;) &apos; default log level is used
-  Logg(&quot;Please modify nDefaultLogLevel_Logging constant to change the default log level.&quot;, 800)
+	dim msg as new com.sun.star.logging.LogRecord
+	msg.Message = a
+	msg.Level = com.sun.star.logging.LogLevel.ALL
+	
+	dim obj as object
+	obj = createUnoService(&quot;com.sun.star.logging.ConsoleHandler&quot;)
+	obj.initialize(Array())
+	obj.Level = com.sun.star.logging.LogLevel.ALL
+
+	msg.Message = reportName
+	msg.Level = com.sun.star.logging.LogLevel.ALL
+	obj.publish(msg)
+
+	msg.Message = reportDir
+	msg.Level = com.sun.star.logging.LogLevel.ALL
+	obj.publish(msg)
+
+	msg.Message = dataDir
+	msg.Level = com.sun.star.logging.LogLevel.ALL
+	obj.publish(msg)
+
+	msg.Message = dstDir
+	msg.Level = com.sun.star.logging.LogLevel.ALL
+	obj.publish(msg)
+
+	dim ds as Object
+	set ds = new DataSource
+	ds._dataDir = &quot;/home/application/reports&quot;
+	ds._workDir = &quot;/home/application/reports&quot;
+	ds.CollectData
+	ds.CloseCollector
 end sub
+
+function show_open_dialog
+	dim aurl as object
+	dim s as string
+	dim oDlg as object
+	
+	oDlg = createUnoService(&quot;com.sun.star.ui.dialogs.FilePicker&quot;)
+	oDlg.setMultiSelectionMode(false)
+	oDlg.appendFilter(&quot;CSV Files (.csv)&quot;, &quot;*.csv&quot; )	
+	oDlg.execute
+	aUrl = oDlg.getFiles()
+	
+	s = aUrl(0)
+	if len(s) &gt; 0 then
+		MsgBox(&quot;File Selected: &quot; &amp; s &amp; chr(13))
+	end if
+	show_open_dialog = s
+end function
+
+sub testDataSource
+	dim ds as Object
+	dim cell as object
+	set ds = new DataSource
+	ds._dataDir = &quot;/home/andriy/projects/lo-reports/dev/reports&quot;
+	ds._workDir = &quot;/home/andriy/tmp&quot;
+	ds.CollectData
+	set cell = ds.GetCell(&quot;spersons&quot;, &quot;Count&quot;, 5)
+	print cell.string
+	&apos;ds.CloseCollector
+end sub
+
+sub ttt
+	dim a as Object
+	a = nothing
+end sub
+
 </script:module>

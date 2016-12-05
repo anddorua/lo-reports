@@ -29,10 +29,15 @@ class ReportsController implements ControllerProviderInterface
     {
         //$msg = $app['lo_caller']->callMacro("dummy");
         $msg = $app['lo_caller']->startMacro2("dummy");
+        $processUser = posix_getpwuid(posix_geteuid());
+        $app['lo_caller']->removeDirs();
         return $app['twig']->render('reports/index.html.twig', ['reqObj' => [
             'Message' => $msg->out,
             'Code' => $msg->code,
             'Error' => $msg->error,
+            'User' => $processUser['name'],
+            'Cwd' => $app['lo_caller']->getCwd(),
+            'Perm' => substr(sprintf('%o', fileperms(sys_get_temp_dir())), -4)
         ]]);
     }
 }
