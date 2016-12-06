@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script:module PUBLIC "-//OpenOffice.org//DTD OfficeDocument 1.0//EN" "module.dtd">
+<script:module xmlns:script="http://openoffice.org/2000/script" script:name="ReportMaker" script:language="StarBasic">REM  *****  BASIC  *****
+
+Option Compatible
+Option ClassModule
+
+Option Explicit
+
+&apos;private _templateDocument as Object
+&apos;private _resultDocument as Object
+private _error as string
+private _width as integer
+private _max_height as integer &apos; max line in template. protects from out of range case
+private _line as integer &apos;current line of processing
+private _curBlockType as string
+private _dataFrameBegin as integer
+private _dataFrameEnd as integer
+private _tplFrameBegin as integer
+private _tplFrameEnd as integer
+private _iterationTable as string
+private _targetLine as integer
+private _tplDoc as Object
+
+private Sub Class_Initialize()
+	_width = 0
+	_max_height = 1000
+	_targetLine = 0
+End Sub
+
+Private Sub Class_Terminate()
+end sub
+
+&apos; returns true on success
+&apos; false if error and _error is message
+Public function Make(byval srcTemplate as string, byval dstFile as string, byref dataSource as Object)
+	&apos; open template
+	Dim Args(1) As new com.sun.star.beans.PropertyValue
+	Dim tmplDocument as Object
+	dim dstDocument as Object
+	dim templateUrl as string
+	dim result as boolean
+	templateURL = ConvertToURL(srcTemplate)
+	args(0).Name = &quot;FilterName&quot;
+	args(0).Value = &quot;calc8&quot;
+	args(1).Name = &quot;FilterOptions&quot;
+	args(1).Value = &quot;44,34,76,1,,0,false,true,true,false&quot;
+
+	tmplDocument = StarDesktop.loadComponentFromURL(templateUrl, &quot;_blank&quot;, 0, args)
+	if isnull(tmplDocument) then
+		_error = &quot;template file &quot; &amp; templateURL &amp; &quot; did not opened&quot;
+		Make = false
+		exit function
+	endif 	
+	_tplDoc = tmplDocument	
+
+	&apos; create empty dst file
+	
+	dstDocument = StarDesktop.loadComponentFromURL(&quot;private:factory/scalc&quot;, &quot;_blank&quot;, 0, Array())
+
+	&apos; interpolate template
+	&apos; todo
+	
+	result = Interpolate(tmplDocument, dstDocument, dataSource)
+
+	&apos; save as xls file
+	
+	if result then
+		dim args1(1) as new com.sun.star.beans.PropertyValue
+		args1(0).Name = &quot;Overwrite&quot;
+		args1(0).Value = True
+		args1(1).Name = &quot;FilterName&quot;
+		args1(1).Value = &quot;Calc MS Excel 2007 XML&quot;	
+		
+		dstDocument.storeAsUrl(ConvertToURL(dstFile), args1)
+	endif
+	&apos; close all
+	tmplDocument.dispose()
+	dstDocument.dispose()
+	Make = result
+end function
+
+private function Interpolate(byref tmplDoc as Object, byref dstDoc as Object, dataSource as Object)
+	dim i as integer
+	dim finished as boolean
+	dim started as boolean
+	dim sheet as object
+	dim zeroColVal as string
+	dim dataColVal as string
+	dim result as boolean
+	dim oDisp as Object
+
+	result = extractMeta(tmplDoc)
+	if not result then
+		Interpolate = false
+		exit function
+	endif
+	
+	
+	&apos; walk until no tag
+	sheet = tmplDoc.Sheets(0)
+	equalizeColWidth(sheet, dstDoc.Sheets(0), 1, _width, 0)
+	oDisp = createUnoService(&quot;com.sun.star.frame.DispatchHelper&quot;)
+	do
+		zeroColVal = sheet.getCellByPosition(0, _line).string
+		finished = zeroColVal = &quot;&quot;
+		if not finished then
+			_dataFrameBegin = -1
+			_dataFrameEnd = -1
+			_tplFrameBegin = -1
+			_tplFrameEnd = -1
+			result = scanArea(sheet)
+			if not result then
+				Interpolate = false
+				exit function
+			endif
+			result = interpolateArea(oDisp, sheet, dstDoc, dataSource)
+			if not result then
+				Interpolate = false
+				exit function
+			endif
+		endif
+	loop while (not finished) and (not (_line &gt; _max_height))
+	
+	_error = &quot;Interpolation did not implemented&quot;
+	Interpolate = false
+end function
+
+private sub equalizeColWidth(byref srcSheet as object, byref dstSheet as Object, cBegin as integer, cEnd as integer, dstBegin as integer)
+	dim i as integer
+	dim w as integer
+	for i = cBegin to cEnd
+		&apos;print srcSheet.getColumns.getByIndex(i).getPropertyValue(&quot;Width&quot;)
+		w = srcSheet.Columns(i).getPropertyValue(&quot;Width&quot;)
+		dstSheet.Columns(dstBegin + (i - cBegin)).setPropertyValue(&quot;Width&quot;, w)
+	next i
+end sub
+
+private sub equalizeRowHeight(byref srcSheet as object, byref dstSheet as Object, lBegin as integer, lEnd as integer, dstBegin as integer)
+	dim i as integer
+	dim h as integer
+	for i = lBegin to lEnd
+		&apos;print srcSheet.getColumns.getByIndex(i).getPropertyValue(&quot;Width&quot;)
+		h = srcSheet.Rows(i).getPropertyValue(&quot;Height&quot;)
+		dstSheet.Rows(dstBegin + (i - lBegin)).setPropertyValue(&quot;Height&quot;, h)
+	next i
+end sub
+
+private function scanArea(byref sheet as Object)
+	dim inData as boolean
+	dim inTemplate as boolean
+	dim zeroColVal as string
+	_curBlockType = sheet.getCellByPosition(0, _line).string
+	do
+		zeroColVal = sheet.getCellByPosition(0, _line).string
+		select case zeroColVal
+			case &quot;data&quot;:
+				_dataFrameBegin = _line + 1
+			case &quot;/data&quot;:
+				_dataFrameEnd = _line - 1
+			case &quot;template&quot;:
+				_tplFrameBegin = _line + 1
+			case &quot;/template&quot;:
+				_tplFrameEnd = _line - 1
+		end select
+		_line = _line + 1
+	loop while (sheet.getCellByPosition(0, _line).string &lt;&gt; (&quot;/&quot; &amp; _curBlockType)) and (not (_line &gt; _max_height))
+	if _line &gt; _max_height then
+		_error = &quot;scanArea: max height=&quot; &amp; cstr(_max_height) &amp; &quot; reached&quot;
+		scanArea = false
+	else
+		_line = _line + 1
+		scanArea = true
+	endif
+end function
+
+private function InterpolateArea(byRef oDisp as Object, byref sheet as Object, byref dstDoc as Object, byref dataSource as Object)
+	dim result as boolean
+	select case _curBlockType
+		case &quot;single&quot;:
+			result = InterpolateSingle(oDisp, sheet, dstDoc, dataSource)
+		case &quot;multiple&quot;:
+			result = InterpolateMultiple(oDisp, sheet, dstDoc, dataSource)
+		case else
+			result = false
+			_error = &quot;InterpolateArea: interpolation tag &quot; &amp; _curBlockType &amp; &quot; unknown&quot;
+	end select
+    InterpolateArea = result
+end function
+
+private function InterpolateSingle(byRef oDisp as Object, byref sheet as Object, byref dstDoc as Object, byref dataSource as Object)
+&apos;	copyAreaInOneBook(sheet, _tplFrameBegin, _tplFrameEnd, _width, dstDoc.Sheets(0))
+&apos;		_targetLine = _targetLine + (_tplFrameEnd - _tplFrameBegin + 1)
+	CopyPasteRange(oDisp, sheet, _tplFrameBegin, _tplFrameEnd, _width, dstDoc, dstDoc.Sheets(0))
+	fillWithData (sheet, _dataFrameBegin, _dataFrameEnd, _width, dstDoc.Sheets(0), _targetLine)
+end function
+
+private sub fillWithData (byref srcSheet as Object, lineBegin as integer, lineEnd as integer, width as integer, byref dstSheet as Object, byval dstLine as integer)
+	dim lin as integer, col as integer
+	dim cell as object
+	
+	With com.sun.star.table.CellContentType
+	for lin = lineBegin to lineEnd
+		for col = 1 to width
+			if srcSheet.getCellByPosition(col, lin).Type &lt;&gt; .EMPTY then
+				cell = srcSheet.getCellByPosition(col, lin)
+				  Select Case Cell.Type
+				    Case .VALUE
+				    	dstSheet.getCellByPosition(col - 1, dstLine + (lin - lineBegin)).Value = Cell.Value
+				    Case .TEXT
+				    	dstSheet.getCellByPosition(col - 1, dstLine + (lin - lineBegin)).string = Cell.string
+				    Case .FORMULA
+				    	dstSheet.getCellByPosition(col - 1, dstLine + (lin - lineBegin)).formula = Cell.formula
+				  End Select
+			endif		
+		next col
+	next lin
+	End With
+end sub
+
+private function copyAreaInOneBook(byref srcSheet as Object, lineBegin as integer, lineEnd as integer, width as integer, dstSheet as Object)
+	dim CopyRange as Object
+	dim PasteCell as Object
+	dim CopyAddress as Object
+	dim PasteAddress as Object
+
+	CopyRange = srcSheet.getCellRangebyPosition(1, lineBegin, _width, lineEnd)
+	PasteCell = dstSheet.getCellByPosition(0, _targetLine)
+	CopyAddress = CopyRange.RangeAddress
+	PasteAddress = PasteCell.CellAddress
+	srcSheet.CopyRange(PasteAddress, CopyAddress)		
+end function
+
+Private Sub CopyPasteRange(byref oDisp as Object, byref srcSheet as Object, lineBegin as integer, lineEnd as integer, width as integer, byref dstDoc as Object, dstSheet as Object)
+	Dim oSourceRange
+	Dim oTargetCell
+	Dim oTargetFrame
+	Dim octl 
+	Dim NoArg()
+	
+	REM Set source doc/currentController/frame/sheet/range.
+	octl = _tplDoc.getCurrentController()
+	oSourceRange = srcSheet.getCellRangebyPosition(1, lineBegin, _width, lineEnd)
+	
+	REM select source range
+	octl.Select(oSourceRange)
+	
+	REM copy the current selection to the clipboard.
+	oDisp.executeDispatch(octl, &quot;.uno:Copy&quot;, &quot;&quot;, 0, NoArg()) 
+	
+	oTargetCell = dstSheet.getCellByPosition(0, _targetLine)
+	dstDoc.getCurrentController().Select(oTargetCell)
+	
+	REM paste from the clipboard to your current location.
+	oTargetframe = dstDoc.getCurrentController().getFrame()
+	oDisp.executeDispatch(oTargetFrame, &quot;.uno:Paste&quot;, &quot;&quot;, 0, NoArg())
+	equalizeRowHeight(srcSheet, dstSheet, lineBegin, lineEnd, _targetLine)
+End Sub
+
+private function extractMeta(byref tmplDoc as Object)
+	dim i as integer
+	dim finished as boolean
+	dim started as boolean
+	dim sheet as object
+	dim zeroColVal as string
+	dim dataColVal as string
+	sheet = tmplDoc.Sheets(0)
+	started = false
+	finished = false
+	i = 0
+	do
+		zeroColVal = sheet.getCellByPosition(0, i).string
+		started = started or zerocolval = &quot;meta&quot;
+		finished = zerocolval = &quot;/meta&quot;
+		dataColVal = sheet.getCellByPosition(1, i).string
+		select case dataColVal
+			case &quot;width&quot;:
+				_width = sheet.getCellByPosition(2, i).value
+		end select
+		i = i + 1
+	loop while (not finished) and (not (i &gt; _max_height))
+	if i &gt; _max_height then
+		_error = &quot;extractMeta: max height=&quot; &amp; cstr(_max_height) &amp; &quot; reached&quot;
+		extractMeta = false
+	else
+		extractMeta = true
+	endif
+	_line = i
+end function
+</script:module>

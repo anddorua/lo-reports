@@ -45,11 +45,11 @@ public function GetCell(byval sheet as string, byval column as string, byval lin
 	if colIndex &gt;= 0 then
 		GetCell = sheetObject.getCellByPosition(colIndex, line)
 	else
-		GetCell = null
+		GetCell = nothing
 	endif
 	exit function
 ErrorHandler:
-	GetCell = null
+	GetCell = nothing
 end function
 
 private function getColumnIndex(byref sheet as Object, byref column as string)
