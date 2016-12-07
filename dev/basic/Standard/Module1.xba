@@ -128,7 +128,14 @@ sub testDataSource
 	ds._dataDir = &quot;/home/andriy/projects/lo-reports/dev/reports&quot;
 	ds._workDir = &quot;/home/andriy/tmp&quot;
 	ds.CollectData
-	cell = ds.GetCell(&quot;persons&quot;, &quot;Count&quot;, 17)
+	cell = ds.GetByDelimitedName(&quot;test_data. GP .1&quot;)
+	if not isnull(cell) then
+		print cell.string
+	else
+		print &quot;null&quot;
+	endif
+	ds.NextLine(&quot;persons&quot;)
+	cell = ds.GetByDelimitedName(&quot;persons.Person.1&quot;)
 	if not isnull(cell) then
 		print cell.string
 	else
@@ -140,69 +147,67 @@ end sub
 sub testReportMaker
 	dim rm as New ReportMaker
 	dim res as boolean
+	dim ds as Object
+	set ds = new DataSource
+	ds._dataDir = &quot;/home/andriy/projects/lo-reports/dev/reports&quot;
+	ds._workDir = &quot;/home/andriy/tmp&quot;
+	ds.CollectData
+	
 	res = rm.Make( _
 		&quot;/home/andriy/projects/lo-reports/dev/reports/report1.ods&quot;, _
 		&quot;/home/andriy/projects/lo-reports/dev/reports/test2.xls&quot;, _
-		nothing)
+		ds)
 	if res then
 		print &quot;success&quot;
 	else
-		print rm._error
+		print rm.errorMessage
 	endif
+	ds.CloseCollector
 end sub
 
+sub testStripe
+	dim ds as Object
+	dim res()
+	set ds = new DataSource
+	res = ds.stripeName(&quot;person.name.2&quot;)
+	print &quot;[0]=&quot; &amp; res(0) &amp; &quot; [1]=&quot; &amp; res(1) &amp; &quot; [2]=&quot; &amp; res(2)
+end sub
 
-sub copy_area
-rem ----------------------------------------------------------------------
-rem define variables
-dim document   as object
-dim dispatcher as object
-rem ----------------------------------------------------------------------
-rem get access to the document
-document   = ThisComponent.CurrentController.Frame
-dispatcher = createUnoService(&quot;com.sun.star.frame.DispatchHelper&quot;)
+sub testReading
+	dim timeStart as Date, timeEnd as Date, ts as Long, te as Long
+	dim i as integer, j as integer
+	dim sheet as Object
+	dim a as string
+	dim arr(99, 999) 
+	sheet = thiscomponent.getcurrentcontroller.activesheet
+	
+	timeStart = now()
+	
+	for i = 0 to 99
+		for j = 0 to 999
+			&apos;sheet.GetCellByPosition(i,j).SetString(&quot;Hello&quot;)
+			arr(i, j) = &quot;Hello&quot;
+		next j
+	next i
+	timeEnd = now()
+	ts = (Hour(timeStart)*60 + Minute(timeStart))*60 + Second(timeStart)
+	te = (Hour(timeEnd)*60 + Minute(timeEnd))*60 + Second(timeEnd)
+	print (te-ts)
+end sub
 
-rem ----------------------------------------------------------------------
-dim args1(0) as new com.sun.star.beans.PropertyValue
-args1(0).Name = &quot;ToPoint&quot;
-args1(0).Value = &quot;$B$5:$E$5&quot;
+sub testHash
+	dim h as new HashTable
+	dim v
+	h.Add(&quot;One&quot;, new HashTable)
+	h.Add(&quot;Two&quot;, new HashTable)
+	h.Add(&quot;Three&quot;, new HashTable)
 
-dispatcher.executeDispatch(document, &quot;.uno:GoToCell&quot;, &quot;&quot;, 0, args1())
-
-rem ----------------------------------------------------------------------
-dispatcher.executeDispatch(document, &quot;.uno:Copy&quot;, &quot;&quot;, 0, Array())
-
-rem ----------------------------------------------------------------------
-dim args3(0) as new com.sun.star.beans.PropertyValue
-args3(0).Name = &quot;Nr&quot;
-args3(0).Value = 2
-
-dispatcher.executeDispatch(document, &quot;.uno:JumpToTable&quot;, &quot;&quot;, 0, args3())
-
-rem ----------------------------------------------------------------------
-dim args4(0) as new com.sun.star.beans.PropertyValue
-args4(0).Name = &quot;ToPoint&quot;
-args4(0).Value = &quot;$B$12&quot;
-
-dispatcher.executeDispatch(document, &quot;.uno:GoToCell&quot;, &quot;&quot;, 0, args4())
-
-rem ----------------------------------------------------------------------
-dim args5(0) as new com.sun.star.beans.PropertyValue
-args5(0).Name = &quot;ToPoint&quot;
-args5(0).Value = &quot;$C$13&quot;
-
-dispatcher.executeDispatch(document, &quot;.uno:GoToCell&quot;, &quot;&quot;, 0, args5())
-
-rem ----------------------------------------------------------------------
-dim args6(0) as new com.sun.star.beans.PropertyValue
-args6(0).Name = &quot;ToPoint&quot;
-args6(0).Value = &quot;$C$12&quot;
-
-dispatcher.executeDispatch(document, &quot;.uno:GoToCell&quot;, &quot;&quot;, 0, args6())
-
-rem ----------------------------------------------------------------------
-dispatcher.executeDispatch(document, &quot;.uno:Paste&quot;, &quot;&quot;, 0, Array())
-
-
+	v = h.getByKey(&quot;One&quot;)
+	
+	v.Add(&quot;H1One&quot;, 11)
+	v.Add(&quot;H1Two&quot;, 12)
+	v.Add(&quot;H1Three&quot;, 13)
+	
+	print h.getByKey(&quot;One&quot;).GetByKey(&quot;H1Two&quot;)
 end sub
 </script:module>

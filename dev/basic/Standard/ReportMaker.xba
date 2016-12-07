@@ -31,9 +31,13 @@ End Sub
 Private Sub Class_Terminate()
 end sub
 
+Public Property Get errorMessage ()
+   errorMessage = _error
+End property
+
 &apos; returns true on success
 &apos; false if error and _error is message
-Public function Make(byval srcTemplate as string, byval dstFile as string, byref dataSource as Object)
+Public function Make(byval srcTemplate as string, byval dstFile as string, byref ds as Object)
 	&apos; open template
 	Dim Args(1) As new com.sun.star.beans.PropertyValue
 	Dim tmplDocument as Object
@@ -54,25 +58,47 @@ Public function Make(byval srcTemplate as string, byval dstFile as string, byref
 	endif 	
 	_tplDoc = tmplDocument	
 
-	&apos; create empty dst file
-	
-	dstDocument = StarDesktop.loadComponentFromURL(&quot;private:factory/scalc&quot;, &quot;_blank&quot;, 0, Array())
-
 	&apos; interpolate template
-	&apos; todo
-	
-	result = Interpolate(tmplDocument, dstDocument, dataSource)
 
-	&apos; save as xls file
+	&apos; make new page as dest page (test purpose for copy cells range comparition)
+	tmplDocument.Sheets.InsertNewByName(&quot;Report&quot;, 1)
 	
+	dim timeStart as Date, timeEnd as Date, ts as Long, te as Long
+	timeStart = now()
+	result = Interpolate(tmplDocument, ds)
+	timeEnd = now()
+	ts = (Hour(timeStart)*60 + Minute(timeStart))*60 + Second(timeStart)
+	te = (Hour(timeEnd)*60 + Minute(timeEnd))*60 + Second(timeEnd)
+	print (te-ts)
+	
+	&apos; save as xls file
 	if result then
 		dim args1(1) as new com.sun.star.beans.PropertyValue
+		dim args2(2) as new com.sun.star.beans.PropertyValue
+		&apos; create empty dst file
+		dstDocument = StarDesktop.loadComponentFromURL(&quot;private:factory/scalc&quot;, &quot;_blank&quot;, 0, Array())
 		args1(0).Name = &quot;Overwrite&quot;
 		args1(0).Value = True
 		args1(1).Name = &quot;FilterName&quot;
 		args1(1).Value = &quot;Calc MS Excel 2007 XML&quot;	
-		
 		dstDocument.storeAsUrl(ConvertToURL(dstFile), args1)
+
+		&apos; copy report to dst file
+		args2(0).Name = &quot;DocName&quot;
+		args2(0).Value = dstDocument.Title
+		args2(1).Name = &quot;Index&quot;
+		args2(1).Value = 0
+		args2(2).Name = &quot;Copy&quot;
+		args2(2).Value = true
+		dispatcher.executeDispatch(tmplDocument.CurrentController.Frame, &quot;.uno:Move&quot;, &quot;&quot;, 0, args2())
+	
+&apos;		args1(0).Name = &quot;Overwrite&quot;
+&apos;		args1(0).Value = True
+&apos;		args1(1).Name = &quot;FilterName&quot;
+&apos;		args1(1).Value = &quot;Calc MS Excel 2007 XML&quot;	
+		
+&apos;		dstDocument.storeAsUrl(ConvertToURL(dstFile), args1)
+		dstDocument.store()
 	endif
 	&apos; close all
 	tmplDocument.dispose()
@@ -80,11 +106,11 @@ Public function Make(byval srcTemplate as string, byval dstFile as string, byref
 	Make = result
 end function
 
-private function Interpolate(byref tmplDoc as Object, byref dstDoc as Object, dataSource as Object)
+private function Interpolate(byref tmplDoc as Object, ds as Object)
 	dim i as integer
 	dim finished as boolean
 	dim started as boolean
-	dim sheet as object
+	dim sheet as object, dstSheet as object
 	dim zeroColVal as string
 	dim dataColVal as string
 	dim result as boolean
@@ -99,7 +125,8 @@ private function Interpolate(byref tmplDoc as Object, byref dstDoc as Object, da
 	
 	&apos; walk until no tag
 	sheet = tmplDoc.Sheets(0)
-	equalizeColWidth(sheet, dstDoc.Sheets(0), 1, _width, 0)
+	dstSheet = tmplDoc.Sheets.GetByName(&quot;Report&quot;)
+	equalizeColWidth(sheet, dstSheet, 1, _width, 0)
 	oDisp = createUnoService(&quot;com.sun.star.frame.DispatchHelper&quot;)
 	do
 		zeroColVal = sheet.getCellByPosition(0, _line).string
@@ -114,16 +141,14 @@ private function Interpolate(byref tmplDoc as Object, byref dstDoc as Object, da
 				Interpolate = false
 				exit function
 			endif
-			result = interpolateArea(oDisp, sheet, dstDoc, dataSource)
+			result = interpolateArea(oDisp, sheet, dstSheet, ds)
 			if not result then
 				Interpolate = false
 				exit function
 			endif
 		endif
 	loop while (not finished) and (not (_line &gt; _max_height))
-	
-	_error = &quot;Interpolation did not implemented&quot;
-	Interpolate = false
+	Interpolate = true
 end function
 
 private sub equalizeColWidth(byref srcSheet as object, byref dstSheet as Object, cBegin as integer, cEnd as integer, dstBegin as integer)
@@ -140,7 +165,6 @@ private sub equalizeRowHeight(byref srcSheet as object, byref dstSheet as Object
 	dim i as integer
 	dim h as integer
 	for i = lBegin to lEnd
-		&apos;print srcSheet.getColumns.getByIndex(i).getPropertyValue(&quot;Width&quot;)
 		h = srcSheet.Rows(i).getPropertyValue(&quot;Height&quot;)
 		dstSheet.Rows(dstBegin + (i - lBegin)).setPropertyValue(&quot;Height&quot;, h)
 	next i
@@ -174,13 +198,13 @@ private function scanArea(byref sheet as Object)
 	endif
 end function
 
-private function InterpolateArea(byRef oDisp as Object, byref sheet as Object, byref dstDoc as Object, byref dataSource as Object)
+private function InterpolateArea(byRef oDisp as Object, byref sheet as Object, byref dstSheet as Object, byref ds as Object)
 	dim result as boolean
 	select case _curBlockType
 		case &quot;single&quot;:
-			result = InterpolateSingle(oDisp, sheet, dstDoc, dataSource)
+			result = InterpolateSingle(oDisp, sheet, dstSheet, ds)
 		case &quot;multiple&quot;:
-			result = InterpolateMultiple(oDisp, sheet, dstDoc, dataSource)
+			result = InterpolateMultiple(oDisp, sheet, dstSheet, ds)
 		case else
 			result = false
 			_error = &quot;InterpolateArea: interpolation tag &quot; &amp; _curBlockType &amp; &quot; unknown&quot;
@@ -188,16 +212,40 @@ private function InterpolateArea(byRef oDisp as Object, byref sheet as Object, b
     InterpolateArea = result
 end function
 
-private function InterpolateSingle(byRef oDisp as Object, byref sheet as Object, byref dstDoc as Object, byref dataSource as Object)
-&apos;	copyAreaInOneBook(sheet, _tplFrameBegin, _tplFrameEnd, _width, dstDoc.Sheets(0))
-&apos;		_targetLine = _targetLine + (_tplFrameEnd - _tplFrameBegin + 1)
-	CopyPasteRange(oDisp, sheet, _tplFrameBegin, _tplFrameEnd, _width, dstDoc, dstDoc.Sheets(0))
-	fillWithData (sheet, _dataFrameBegin, _dataFrameEnd, _width, dstDoc.Sheets(0), _targetLine)
+private function InterpolateSingle(byRef oDisp as Object, byref sheet as Object, byref dstSheet as Object, byref ds as Object)
+	copyAreaInOneBook(sheet, _tplFrameBegin, _tplFrameEnd, _width, dstSheet)
+	fillWithData (sheet, _dataFrameBegin, _dataFrameEnd, _width, dstSheet, _targetLine, ds)
+
+&apos;	CopyPasteRange(oDisp, sheet, _tplFrameBegin, _tplFrameEnd, _width, dstDoc, dstDoc.Sheets(0))
+&apos;	fillWithData (sheet, _dataFrameBegin, _dataFrameEnd, _width, dstDoc.Sheets(0), _targetLine, ds)
+	_targetLine = _targetLine + (_tplFrameEnd - _tplFrameBegin + 1)
+	InterpolateSingle = true
 end function
 
-private sub fillWithData (byref srcSheet as Object, lineBegin as integer, lineEnd as integer, width as integer, byref dstSheet as Object, byval dstLine as integer)
+private function InterpolateMultiple(byRef oDisp as Object, byref sheet as Object, byref dstSheet as Object, byref ds as Object)
+	dim iterTable as string
+	dim firstDataCell as Object
+	&apos; get the table for iteration
+	iterTable = sheet.getCellByPosition(1, _dataFrameBegin - 1).string
+	firstDataCell = ds.GetByDelimitedName(iterTable)
+	while firstDataCell.TYPE &lt;&gt; com.sun.star.table.CellContentType.EMPTY
+
+		copyAreaInOneBook(sheet, _tplFrameBegin, _tplFrameEnd, _width, dstSheet)
+		fillWithData (sheet, _dataFrameBegin, _dataFrameEnd, _width, dstSheet, _targetLine, ds)
+
+&apos;		CopyPasteRange(oDisp, sheet, _tplFrameBegin, _tplFrameEnd, _width, dstDoc, dstDoc.Sheets(0))
+&apos;		fillWithData (sheet, _dataFrameBegin, _dataFrameEnd, _width, dstDoc.Sheets(0), _targetLine, ds)
+		_targetLine = _targetLine + (_tplFrameEnd - _tplFrameBegin + 1)
+		ds.NextLine(iterTable)
+		firstDataCell = ds.GetByDelimitedName(iterTable)
+	wend
+	InterpolateMultiple = true
+end function
+
+private sub fillWithData (byref srcSheet as Object, lineBegin as integer, lineEnd as integer, width as integer, byref dstSheet as Object, byval dstLine as integer, byref ds as Object)
 	dim lin as integer, col as integer
 	dim cell as object
+	dim dataCell as object
 	
 	With com.sun.star.table.CellContentType
 	for lin = lineBegin to lineEnd
@@ -208,7 +256,21 @@ private sub fillWithData (byref srcSheet as Object, lineBegin as integer, lineEn
 				    Case .VALUE
 				    	dstSheet.getCellByPosition(col - 1, dstLine + (lin - lineBegin)).Value = Cell.Value
 				    Case .TEXT
-				    	dstSheet.getCellByPosition(col - 1, dstLine + (lin - lineBegin)).string = Cell.string
+				    	dataCell = ds.GetByDelimitedName(Cell.string)
+				    	if isNull(dataCell) then
+				    		dstSheet.getCellByPosition(col - 1, dstLine + (lin - lineBegin)).Value = Cell.string
+				    	else
+				    		select case dataCell.Type
+				    			case .VALUE
+						    		dstSheet.getCellByPosition(col - 1, dstLine + (lin - lineBegin)).Value = dataCell.Value
+				    			case .TEXT
+						    		dstSheet.getCellByPosition(col - 1, dstLine + (lin - lineBegin)).string = dataCell.string
+				    			case .FORMULA
+						    		dstSheet.getCellByPosition(col - 1, dstLine + (lin - lineBegin)).Formula = dataCell.Formula
+				    			case else
+						    		dstSheet.getCellByPosition(col - 1, dstLine + (lin - lineBegin)).string = dataCell.string
+				    		end select
+				    	endif
 				    Case .FORMULA
 				    	dstSheet.getCellByPosition(col - 1, dstLine + (lin - lineBegin)).formula = Cell.formula
 				  End Select
@@ -228,7 +290,8 @@ private function copyAreaInOneBook(byref srcSheet as Object, lineBegin as intege
 	PasteCell = dstSheet.getCellByPosition(0, _targetLine)
 	CopyAddress = CopyRange.RangeAddress
 	PasteAddress = PasteCell.CellAddress
-	srcSheet.CopyRange(PasteAddress, CopyAddress)		
+	srcSheet.CopyRange(PasteAddress, CopyAddress)	
+	equalizeRowHeight(srcSheet, dstSheet, lineBegin, lineEnd, _targetLine)
 end function
 
 Private Sub CopyPasteRange(byref oDisp as Object, byref srcSheet as Object, lineBegin as integer, lineEnd as integer, width as integer, byref dstDoc as Object, dstSheet as Object)

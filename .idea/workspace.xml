@@ -2,9 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="d23a459c-08c3-413e-8112-d829a621ea14" name="Default" comment="">
-      <change type="DELETED" beforePath="$PROJECT_DIR$/dev/reports/tmp_collector.ods" afterPath="" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/dev/reports/report1.ods" afterPath="$PROJECT_DIR$/dev/reports/report1.ods" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/dev/reports/test2.xls" afterPath="$PROJECT_DIR$/dev/reports/test2.xls" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/dev/basic/Standard/DataSource.xba" afterPath="$PROJECT_DIR$/dev/basic/Standard/DataSource.xba" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/dev/basic/Standard/Module1.xba" afterPath="$PROJECT_DIR$/dev/basic/Standard/Module1.xba" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/dev/basic/Standard/ReportMaker.xba" afterPath="$PROJECT_DIR$/dev/basic/Standard/ReportMaker.xba" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/dev/basic/Standard/script.xlb" afterPath="$PROJECT_DIR$/dev/basic/Standard/script.xlb" />
     </list>
     <ignored path="lo-reports.iws" />
@@ -317,11 +319,12 @@
       <workItem from="1480703384171" duration="4025000" />
       <workItem from="1480936399731" duration="9105000" />
       <workItem from="1481019536114" duration="607000" />
+      <workItem from="1481102587746" duration="692000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="13737000" />
+    <option name="totallyTimeSpent" value="14429000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="65" y="24" width="1215" height="776" extended-state="6" />
@@ -362,6 +365,22 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/.gitignore">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/start-dev.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="144">
+          <caret line="8" column="0" selection-start-line="7" selection-start-column="0" selection-end-line="8" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/.gitignore">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -517,17 +536,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/dev/site/include/bootstrap.php">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="396">
-          <caret line="35" column="33" selection-start-line="35" selection-start-column="33" selection-end-line="35" selection-end-column="34" />
-          <folding>
-            <element signature="e#6#86#0#PHP" expanded="true" />
-            <element signature="e#88#110#0#PHP" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/dev/site/classes/ServiceProviders/LOCallerServiceProvider.php">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="306">
@@ -549,13 +557,19 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/dev/site/classes/Controllers/ReportsController.php">
+    <entry file="file://$PROJECT_DIR$/start-dev.sh">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="540">
-          <caret line="32" column="8" selection-start-line="32" selection-start-column="8" selection-end-line="32" selection-end-column="8" />
-          <folding>
-            <element signature="e#35#57#0#PHP" expanded="true" />
-          </folding>
+        <state relative-caret-position="144">
+          <caret line="8" column="0" selection-start-line="7" selection-start-column="0" selection-end-line="8" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/start-devx.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="144">
+          <caret line="8" column="0" selection-start-line="8" selection-start-column="0" selection-end-line="8" selection-end-column="0" />
+          <folding />
         </state>
       </provider>
     </entry>
@@ -575,19 +589,24 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/start-dev.sh">
+    <entry file="file://$PROJECT_DIR$/dev/site/classes/Controllers/ReportsController.php">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="144">
-          <caret line="8" column="0" selection-start-line="7" selection-start-column="0" selection-end-line="8" selection-end-column="0" />
-          <folding />
+        <state relative-caret-position="540">
+          <caret line="32" column="8" selection-start-line="32" selection-start-column="8" selection-end-line="32" selection-end-column="8" />
+          <folding>
+            <element signature="e#35#57#0#PHP" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/start-devx.sh">
+    <entry file="file://$PROJECT_DIR$/dev/site/include/bootstrap.php">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="144">
-          <caret line="8" column="0" selection-start-line="8" selection-start-column="0" selection-end-line="8" selection-end-column="0" />
-          <folding />
+        <state relative-caret-position="396">
+          <caret line="35" column="33" selection-start-line="35" selection-start-column="33" selection-end-line="35" selection-end-column="34" />
+          <folding>
+            <element signature="e#6#86#0#PHP" expanded="true" />
+            <element signature="e#88#110#0#PHP" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

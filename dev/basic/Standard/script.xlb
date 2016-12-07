@@ -6,4 +6,5 @@
  <library:element library:name="DataSource"/>
  <library:element library:name="copier"/>
  <library:element library:name="ReportMaker"/>
+ <library:element library:name="HashTable"/>
 </library:library>

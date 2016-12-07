@@ -1,0 +1,10 @@
+BOAT,Status,Date,Day,Start,End,Hour,Guests,Agent,Client / Comment,Package, Amount , Comm , Net Amt , Deposit , Bal , Catering , Liquor , Other , GP , Cost , NP , Month 
+VIRGO,Closed,1-Jan-16,Fri,3:00 PM,7:00 PM,4,,,sarah - Kirean ,,6000,600,8400,8400, -   ,600,,,7800,3600,4200,Jan 16
+VIRGO,Closed,2-Jan-16,Sat,12:00 PM,4:00 PM,4,,Exotic,exotic - James,,6000,1200,4800,4800, -   ,300,,,4500,3600,900,Jan 16
+VIRGO,Closed,2-Jan-16,Sat,7:00 PM,11:00 PM,4,,Capt,prabhu client,,7500,750,6750,6750, -   ,300,,,6450,3600,2850,Jan 16
+VIRGO,Closed,3-Jan-16,Sun,3:00 PM,7:00 PM,4,,,shameer/D3,,7500,750,6750,6750, -   ,300,,,6450,3600,2850,Jan 16
+VIRGO,Closed,8-Jan-16,Fri,5:00 PM,10:00 PM,5,,Exotic,exotic limo - Arif ,,7500,1500,6000,6000, -   ,300,,,5700,4500,1200,Jan 16
+VIRGO,Closed,9-Jan-16,Sat,12:00 AM,4:00 AM,4,,MBC,Behzad - MBC,,9000,1500,7500,7500, -   ,300,,,7200,3600,3600,Jan 16
+VIRGO,Closed,13-Jan-16,Wed,11:30 PM,3:30 AM,4,,Ultimate,zillah ,,7500,1500,6000,6000, -   ,300,,,5700,3600,2100,Jan 16
+VIRGO,Closed,14-Jan-16,Thu,5:30 PM,8:30 PM,3,,,super yacht - fadala,,6000,600,7200,7200, -   ,300,,,6900,2700,4200,Jan 16
+VIRGO,Closed,15-Jan-16,Fri,12:00 PM,3:00 PM,3,,MBC,Behzad,,5000,,5000,5000, -   ,300,,,4700,2700,2000,Jan 16
