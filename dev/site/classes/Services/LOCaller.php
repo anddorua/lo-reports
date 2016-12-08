@@ -8,8 +8,9 @@ namespace App\Services;
  */
 class LOCaller
 {
-    const max_utime = 2000000;
-    const wait_quant = 50000;
+    const max_utime = 600 * 1000000; // after that time unfinished service will be killed
+    const progress_watchdog_utime = 600 * 1000000; // after that time service that do not receive log messages will be killed
+    const wait_quant = 50000; // wait time quant
 
     private $reportDir;
     private $dataDir;
@@ -106,25 +107,69 @@ class LOCaller
             rmdir($this->dstDir);
         }
         if (isset($this->cwd)) {
+            array_map('unlink', glob($this->cwd . "/*"));
             rmdir($this->cwd);
         }
     }
 
-    public function startMacro2($reportName)
+    /**
+     * copy report to work dir
+     * make csv files with data
+     * @param $reportFile string fully qualified source report file name will be copied to workdir
+     * @param $data array ['table_name' => [ [ 'key1' => val1, 'key2' => val2 ], [ 'key1' => val3, 'key2' => val4 ], ... ]]
+     * @return string file name of report file, copied for process
+     */
+    public function prepareFiles($reportFile, $data)
     {
+        $reportFileName = pathinfo($reportFile, PATHINFO_FILENAME);
+        $dstPath = $this->cwd . DIRECTORY_SEPARATOR . $reportFileName . '.' . pathinfo($reportFile, PATHINFO_EXTENSION);
+        copy($reportFile, $dstPath);
+
+        foreach($data as $table_name => $values) {
+            if (count($values) == 0) {
+                continue;
+            }
+            $csvFileName = $this->dataDir . DIRECTORY_SEPARATOR . $table_name . '.csv';
+            $fp = fopen($csvFileName, 'w');
+            fputcsv($fp, array_keys((array)$values[0]));
+            array_walk($values, function($row) use ($fp) {
+                fputcsv($fp, array_values((array)$row));
+            });
+            fclose($fp);
+        }
+        return $dstPath;
+    }
+
+    /**
+     * @param $reportFileName string fully qualified report file name, it will be copied to tmp dir
+     * @param $resultReportName string resulting report .xls file (ex: 'YearReport.xls')
+     * @param $dirToCopyResult string dir to copy result file without trailing slash
+     * @param $data array mixed ['table_name' => [ [ 'key1' => val1, 'key2' => val2 ], [ 'key1' => val3, 'key2' => val4 ], ... ]]
+     * @return \StdClass
+     */
+    public function startReport($reportFileName, $resultReportName, $dirToCopyResult, $data, callable $progress)
+    {
+        $this->cwd = $this->createDirs();
+        $workReportFile = $this->prepareFiles($reportFileName, $data);
+
         $descriptorspec = array(
             // 0 => array("pipe", "r"),  // stdin - канал, из которого дочерний процесс будет читать
             1 => array("pipe", "w"),  // stdout - канал, в который дочерний процесс будет записывать
-            2 => array("file", "/tmp/error-output.txt", "a") // stderr - файл для записи
+            2 => array("file", $this->cwd . "/error-output.txt", "a") // stderr - файл для записи
         );
-
-        $this->cwd = $this->createDirs();
-
-        $process = proc_open('exec soffice --invisible --nodefault --norestore "macro:///Standard.Module1.starter(\"' . $reportName .'\", \"' . $this->reportDir . '\", \"' . $this->dataDir . '\", \"' . $this->dstDir . '\")"', $descriptorspec, $pipes, $this->cwd, null);
+        $process = proc_open(
+            'exec soffice --invisible --nodefault --norestore "macro:///Standard.Starter.Report(\"'
+                . $workReportFile .'\", \"'
+                . $this->dstDir . DIRECTORY_SEPARATOR . $resultReportName . '\", \"'
+                . $this->dataDir . '\")"'
+            , $descriptorspec
+            , $pipes
+            , $this->cwd
+            , null);
 
         $res = new \StdClass();
         $res->out = '';
-        $res->code = 1000;
+        $res->code = 1000; // just magic number to easily find if it is occured
         $res->error = '';
         if (is_resource($process)) {
             // $pipes теперь выглядит так:
@@ -134,25 +179,33 @@ class LOCaller
 
             stream_set_blocking($pipes[1], false);
             $time_passed = 0;
+            $log_watchdog = 0;
             $wait_for_terminate = false;
             $status = null;
+            $br = new BufferReader();
             do {
-                $res->out .= stream_get_contents($pipes[1]);
+                $logFragment = stream_get_contents($pipes[1]);
+                if ($logFragment != '') {
+                    $br->add($logFragment, $progress);
+                    $log_watchdog = 0;
+                }
                 $status = proc_get_status($process);
                 if ($status['running'] === false) {
                     break;
                 } else {
-                    if ($time_passed >= self::max_utime && !$wait_for_terminate) {
+                    if (($time_passed >= self::max_utime || $log_watchdog >= self::progress_watchdog_utime) && !$wait_for_terminate) {
                         proc_terminate($process);
                         $wait_for_terminate = true;
                         $res->error = 'forced termination';
                     }
                     usleep(self::wait_quant);
                     $time_passed += self::wait_quant;
+                    $log_watchdog +=  self::wait_quant;
                 }
             } while (true);
 
-            $res->out .= stream_get_contents($pipes[1]);
+            $br->add(stream_get_contents($pipes[1]), $progress);
+            $res->out = $br->getBuffer();
             fclose($pipes[1]);
 
             // Важно закрывать все каналы перед вызовом
@@ -160,6 +213,10 @@ class LOCaller
             proc_close($process);
 
             $res->code = $status['exitcode'];
+            if ($res->code == 0) {
+                copy($this->dstDir . DIRECTORY_SEPARATOR . $resultReportName
+                    , $dirToCopyResult . '/' . $resultReportName);
+            }
         } else {
             $res->error = 'process did not started';
         }

@@ -39,7 +39,8 @@ $app['twig'] = $app->extend('twig', function ($twig) {
 });
 $app['twig.path'] = array(__DIR__.'/../templates');
 $app['twig.options'] = array('cache' => __DIR__.'/../var/cache/twig');
-$app['reports.path'] = '/tmp';
+$app['reports.path'] = '/home/application/reports';
+$app['reports.config'] = require('reports.php');
 
 if ($isDebug) {
     // enable the debug mode

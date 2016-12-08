@@ -4,7 +4,9 @@
  <library:element library:name="Module1"/>
  <library:element library:name="Logger"/>
  <library:element library:name="DataSource"/>
- <library:element library:name="copier"/>
+ <library:element library:name="ConsoleLogger"/>
  <library:element library:name="ReportMaker"/>
  <library:element library:name="HashTable"/>
+ <library:element library:name="Starter"/>
+ <library:element library:name="FileLogger"/>
 </library:library>

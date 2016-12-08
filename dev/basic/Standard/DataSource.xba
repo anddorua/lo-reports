@@ -32,13 +32,13 @@ Public Sub CloseCollector()
     endif
 end sub
 
-Public Property Set dataDir (ByVal pValue As String)
+Public Sub setDataDir (ByVal pValue As String)
    _dataDir = pValue
-End property
+End sub
 
-Public Property Set workDir (ByVal pValue As String)
+Public Sub setWorkDir (ByVal pValue As String)
    _workDir = pValue
-End property
+End sub
 
 public function getCurrentLine(table as string)
 	dim i as integer
@@ -222,6 +222,11 @@ end function
 
 private sub subSaveAs(oDoc, sFile, optional sType)
 	dim sURL as string
+	dim oSFA as Object
+	oSFA = createUNOService (&quot;com.sun.star.ucb.SimpleFileAccess&quot;) 
+    If oSFA.exists(sFile) Then
+      oSFA.kill(sFile) &apos;if file exists, delete it
+    End If
 	sURL = convertToURL(sFile)
 	if isMissing(sType) then
 	   oDoc.storeAsURL(sURL, array())

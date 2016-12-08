@@ -21,11 +21,19 @@ private _tplFrameEnd as integer
 private _iterationTable as string
 private _targetLine as integer
 private _tplDoc as Object
+private _reportSheetName as string
+private _logger as Object
+private _copyOperationsMade as integer
+private _logStep as integer
 
 private Sub Class_Initialize()
 	_width = 0
 	_max_height = 1000
 	_targetLine = 0
+	_reportSheetName = &quot;Report&quot;
+	_logger = nothing
+	_copyOperationsMade = 0
+	_logStep = 10
 End Sub
 
 Private Sub Class_Terminate()
@@ -35,13 +43,18 @@ Public Property Get errorMessage ()
    errorMessage = _error
 End property
 
+public sub SetLogger (byref value as Object)
+   _logger = value
+End sub
+
 &apos; returns true on success
 &apos; false if error and _error is message
 Public function Make(byval srcTemplate as string, byval dstFile as string, byref ds as Object)
 	&apos; open template
 	Dim Args(1) As new com.sun.star.beans.PropertyValue
 	Dim tmplDocument as Object
-	dim dstDocument as Object
+	dim dstDocument as Object, dstDocName as string
+	dim oDisp as Object
 	dim templateUrl as string
 	dim result as boolean
 	templateURL = ConvertToURL(srcTemplate)
@@ -61,15 +74,16 @@ Public function Make(byval srcTemplate as string, byval dstFile as string, byref
 	&apos; interpolate template
 
 	&apos; make new page as dest page (test purpose for copy cells range comparition)
-	tmplDocument.Sheets.InsertNewByName(&quot;Report&quot;, 1)
+	tmplDocument.Sheets.InsertNewByName(_reportSheetName, 1)
+	oDisp = createUnoService(&quot;com.sun.star.frame.DispatchHelper&quot;)
 	
 	dim timeStart as Date, timeEnd as Date, ts as Long, te as Long
 	timeStart = now()
-	result = Interpolate(tmplDocument, ds)
+	result = Interpolate(tmplDocument, ds, oDisp)
 	timeEnd = now()
 	ts = (Hour(timeStart)*60 + Minute(timeStart))*60 + Second(timeStart)
 	te = (Hour(timeEnd)*60 + Minute(timeEnd))*60 + Second(timeEnd)
-	print (te-ts)
+	&apos;print (te-ts)
 	
 	&apos; save as xls file
 	if result then
@@ -84,29 +98,20 @@ Public function Make(byval srcTemplate as string, byval dstFile as string, byref
 		dstDocument.storeAsUrl(ConvertToURL(dstFile), args1)
 
 		&apos; copy report to dst file
-		args2(0).Name = &quot;DocName&quot;
-		args2(0).Value = dstDocument.Title
-		args2(1).Name = &quot;Index&quot;
-		args2(1).Value = 0
-		args2(2).Name = &quot;Copy&quot;
-		args2(2).Value = true
-		dispatcher.executeDispatch(tmplDocument.CurrentController.Frame, &quot;.uno:Move&quot;, &quot;&quot;, 0, args2())
-	
-&apos;		args1(0).Name = &quot;Overwrite&quot;
-&apos;		args1(0).Value = True
-&apos;		args1(1).Name = &quot;FilterName&quot;
-&apos;		args1(1).Value = &quot;Calc MS Excel 2007 XML&quot;	
+		CopySheet(tmplDocument.Sheets.GetByName(_reportSheetName), tmplDocument, dstDocument, 0)
 		
-&apos;		dstDocument.storeAsUrl(ConvertToURL(dstFile), args1)
+		dim required(0) as string
+		required(0) = _reportSheetName
+		DeleteSheetExceptRequired(dstDocument, required)
 		dstDocument.store()
 	endif
 	&apos; close all
-	tmplDocument.dispose()
-	dstDocument.dispose()
+	tmplDocument.dispose(-1)
+	dstDocument.dispose(-1)
 	Make = result
 end function
 
-private function Interpolate(byref tmplDoc as Object, ds as Object)
+private function Interpolate(byref tmplDoc as Object, ds as Object, oDisp as Object)
 	dim i as integer
 	dim finished as boolean
 	dim started as boolean
@@ -114,7 +119,6 @@ private function Interpolate(byref tmplDoc as Object, ds as Object)
 	dim zeroColVal as string
 	dim dataColVal as string
 	dim result as boolean
-	dim oDisp as Object
 
 	result = extractMeta(tmplDoc)
 	if not result then
@@ -125,9 +129,8 @@ private function Interpolate(byref tmplDoc as Object, ds as Object)
 	
 	&apos; walk until no tag
 	sheet = tmplDoc.Sheets(0)
-	dstSheet = tmplDoc.Sheets.GetByName(&quot;Report&quot;)
+	dstSheet = tmplDoc.Sheets.GetByName(_reportSheetName)
 	equalizeColWidth(sheet, dstSheet, 1, _width, 0)
-	oDisp = createUnoService(&quot;com.sun.star.frame.DispatchHelper&quot;)
 	do
 		zeroColVal = sheet.getCellByPosition(0, _line).string
 		finished = zeroColVal = &quot;&quot;
@@ -292,6 +295,7 @@ private function copyAreaInOneBook(byref srcSheet as Object, lineBegin as intege
 	PasteAddress = PasteCell.CellAddress
 	srcSheet.CopyRange(PasteAddress, CopyAddress)	
 	equalizeRowHeight(srcSheet, dstSheet, lineBegin, lineEnd, _targetLine)
+	logCopyOperation
 end function
 
 Private Sub CopyPasteRange(byref oDisp as Object, byref srcSheet as Object, lineBegin as integer, lineEnd as integer, width as integer, byref dstDoc as Object, dstSheet as Object)
@@ -350,4 +354,98 @@ private function extractMeta(byref tmplDoc as Object)
 	endif
 	_line = i
 end function
+
+
+
+&apos; Modified macro: copy sheet from the current document to the destination document,
+&apos; before a given index (so the new sheet will have that index).
+&apos; Index &lt;= 0 means move to end.
+&apos; see http://www.cse.unsw.edu.au/~en1811/resources/Workbook/Workbook1.3.bas
+private Sub CopySheet(oSheet As Object, oSrcDoc as Object, oDestDoc As Object, idxBefore As Integer)
+	Dim oFrame As Object
+	Dim oDispatcher As Object
+	
+	oFrame = oSrcDoc.CurrentController.Frame
+	oDispatcher = createUnoService(&quot;com.sun.star.frame.DispatchHelper&quot;)
+		
+	&apos; Activate source data sheet, this might be replaceable by a direct API sheet activation TO_DO
+	Dim args1(0) As New com.sun.star.beans.PropertyValue
+	args1(0).Name = &quot;Nr&quot;
+	args1(0).Value = getSheetIndex(oSheet, oSrcDoc)
+	oDispatcher.executeDispatch(oFrame, &quot;.uno:JumpToTable&quot;, &quot;&quot;, 0, args1())
+	
+	&apos; Destination
+	Dim docName As String
+	Dim args2(2) As New com.sun.star.beans.PropertyValue
+	
+	docName = oDestDoc.Title
+	If Right(docName, 4) = &quot;.xls&quot; Then
+		docName = Left(oDestDoc.Title, Len(oDestDoc.Title)-4)   &apos; remove extension
+	End If
+	
+	If idxBefore &lt;= 0 Then
+		idxBefore = oDestDoc.getSheets().Count+1
+	End If
+	
+	args2(0).Name = &quot;DocName&quot;:  args2(0).Value = docName
+	args2(1).Name = &quot;Index&quot;:	args2(1).Value = idxBefore
+	args2(2).Name = &quot;Copy&quot;:		args2(2).Value = true
+	
+	On Error Resume Next    &apos; Unsure why this throws an exception, the sheet is copied.
+						    &apos; Perhaps it&apos;s because the move occurs between documents.
+	oDispatcher.executeDispatch(oFrame, &quot;.uno:Move&quot;, &quot;&quot;, 0, args2())
+	
+End Sub
+
+&apos; Map sheet name to index (1-origin).
+private Function GetSheetIndex(oSheet As Object, oDoc As Object) As Integer
+	Dim sheetNames As Variant
+	Dim sheetIndex As Integer
+	
+	sheetNames = oDoc.getSheets().ElementNames
+	sheetIndex = 1
+	Do While sheetIndex &lt;=  oDoc.getSheets().Count
+		If sheetNames(sheetIndex-1) = oSheet.Name Then
+			GetSheetIndex = sheetIndex
+			Exit Function
+		End If
+		sheetIndex = sheetIndex + 1
+	Loop
+	
+	GetSheetIndex = -1
+End Function
+
+private function InArray(a, needle)
+	dim i as integer
+	for i = 0 to ubound(a)
+		if a(i) = needle then
+			InArray = true
+			exit function
+		endif
+	next i
+	InArray = false
+end function
+
+private sub DeleteSheetExceptRequired(byref oDoc as Object, required)
+	Dim sheetNames As Variant
+	Dim sheetIndex As Integer
+	
+	sheetNames = oDoc.getSheets().ElementNames
+	sheetIndex = 0
+	Do While sheetIndex &lt;  oDoc.getSheets().Count
+		If not inArray(required, sheetNames(sheetIndex)) Then
+			oDoc.Sheets.removeByName(sheetNames(sheetIndex))
+		End If
+		sheetIndex = sheetIndex + 1
+	Loop
+end sub
+
+private sub logCopyOperation
+	_copyOperationsMade = _copyOperationsMade + 1
+	if (_copyOperationsMade mod _logStep) = 0 then
+		if not isnull(_logger) then
+			_logger.out(&quot;{&quot;&quot;progress&quot;&quot;: &quot; &amp; CStr(_copyOperationsMade) &amp; &quot;}&quot;)
+		endif
+	endif
+end sub
 </script:module>
