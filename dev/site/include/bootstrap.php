@@ -15,6 +15,7 @@ use Silex\Provider\MonologServiceProvider;
 use Silex\Provider\WebProfilerServiceProvider;
 use Symfony\Component\Debug\Debug;
 use App\ServiceProviders\LOCallerServiceProvider;
+use App\ServiceProviders\JMSServiceProvider;
 
 // This check prevents access to debug front controllers that are deployed by accident to production servers.
 // Feel free to remove this, extend it, or make something more sophisticated.
@@ -36,6 +37,10 @@ $app->register(new AssetServiceProvider());
 $app->register(new TwigServiceProvider());
 $app->register(new HttpFragmentServiceProvider());
 $app->register(new LOCallerServiceProvider());
+/*$app->register(new JMSServiceProvider(), [
+    'jms.metadata-dir' => __DIR__ . "/config/metadata",
+]);*/
+
 $app['twig'] = $app->extend('twig', function ($twig) {
     return $twig;
 });

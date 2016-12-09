@@ -157,8 +157,9 @@ class LOCaller
             1 => array("pipe", "w"),  // stdout - канал, в который дочерний процесс будет записывать
             2 => array("file", $this->cwd . "/error-output.txt", "a") // stderr - файл для записи
         );
+        // you may user --invisible instead of --headless for debug purposes
         $process = proc_open(
-            'exec soffice --invisible --nodefault --norestore "macro:///Standard.Starter.Report(\"'
+            'exec soffice --headless --nodefault --norestore "macro:///Standard.Starter.Report(\"'
                 . $workReportFile .'\", \"'
                 . $this->dstDir . DIRECTORY_SEPARATOR . $resultReportName . '\", \"'
                 . $this->dataDir . '\")"'
