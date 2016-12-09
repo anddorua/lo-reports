@@ -26,7 +26,7 @@ class BufferReader
     public function add($fragment, callable $callback)
     {
         $this->buffer .= $fragment;
-        if ($pos = strpos($this->buffer, "\n", $this->tail)) {
+        while (($pos = strpos($this->buffer, "\n", $this->tail)) !== false) {
             $sub_line = substr($this->buffer, $this->tail, $pos - $this->tail + 1);
             $this->tail = $pos + 1;
             $callback($sub_line);

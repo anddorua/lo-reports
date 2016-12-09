@@ -37,12 +37,13 @@ class ReportsController implements ControllerProviderInterface
         $dataProvider = new $config['provider']();
         $data = $dataProvider->getData();
 
+        /* @var $app['lo_caller'] \App\Services\LOCaller */
         $msg = $app['lo_caller']->startReport(
             "/home/application/reports/report1.ods",
             "TestReport.xls",
             "/home/application/reports",
             $data,
-            function ($line) use ($progress) {
+            function ($line) use (&$progress) {
                 $progress[] = $line;
             });
         $processUser = posix_getpwuid(posix_geteuid());
