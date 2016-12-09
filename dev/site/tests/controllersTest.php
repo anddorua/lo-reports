@@ -1,4 +1,5 @@
 <?php
+namespace Test;
 
 use Silex\WebTestCase;
 
@@ -6,6 +7,7 @@ class controllersTest extends WebTestCase
 {
     public function testGetHomepage()
     {
+        $this->markTestSkipped();// 'it came from original skeleton, it does not needed'
         $client = $this->createClient();
         $client->followRedirects(true);
         $crawler = $client->request('GET', '/');
@@ -16,11 +18,11 @@ class controllersTest extends WebTestCase
 
     public function createApplication()
     {
-        $app = require __DIR__.'/../src/app.php';
-        require __DIR__.'/../config/dev.php';
-        require __DIR__.'/../src/controllers.php';
+        require __DIR__.'/../include/bootstrap.php';
+        require __DIR__.'/../include/mount_routes.php';
+        require __DIR__.'/../include/error_handling.php';
         $app['session.test'] = true;
 
-        return $this->app = $app;
+        return $app;
     }
 }

@@ -29,6 +29,8 @@ if (
 }
 
 $app = new Application();
+$app['debug'] = defined('DEBUG') ? DEBUG : false;
+
 $app->register(new ServiceControllerServiceProvider());
 $app->register(new AssetServiceProvider());
 $app->register(new TwigServiceProvider());
@@ -42,9 +44,8 @@ $app['twig.options'] = array('cache' => __DIR__.'/../var/cache/twig');
 $app['reports.path'] = '/home/application/reports';
 $app['reports.config'] = require('reports.php');
 
-if ($isDebug) {
+if ($app['debug']) {
     // enable the debug mode
-    $app['debug'] = true;
     Debug::enable();
 
     $app->register(new MonologServiceProvider(), array(

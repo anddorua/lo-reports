@@ -1,8 +1,8 @@
 <?php
 
-$isDebug = true;
+define('DEBUG', true);
 
-ini_set('display_errors', $isDebug ? 1 : 0);
+ini_set('display_errors', DEBUG ? 1 : 0);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
