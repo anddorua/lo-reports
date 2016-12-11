@@ -39,10 +39,12 @@ class ReportsController implements ControllerProviderInterface
             $stream = function() use ($app) {
                 $string_length = 0;
                 echo 'Begin test with an ' . $string_length . ' character string...<br />' . "\r\n";
+                $time_start = microtime(true);
 
                 // For 3 seconds, repeat the string.
                 for ($i = 0; $i < 10; $i++) {
                     $string = str_repeat('.', $string_length);
+                    echo 'time since begin:' . (microtime(true) - $time_start);
                     echo $string . '<br />' . "\r\n";
                     echo $i . '<br />' . "\r\n";
                     @ob_end_flush();
@@ -72,15 +74,16 @@ class ReportsController implements ControllerProviderInterface
         $stream = function() use ($app, $data) {
 
             ini_set('zlib.output_compression', false);
-
+            $time_start = microtime(true);
             $progress = [];
             $msg = $app['lo_caller']->startReport(
                 "/home/application/reports/report1.ods",
                 "TestReport.xls",
                 "/home/application/reports",
                 $data,
-                function ($line) use (&$progress) {
-                    echo $line;
+                function ($line) use (&$progress, $time_start) {
+                    $op_time = microtime(true);
+                    echo 'time since begin:' . ($op_time - $time_start) . $line;
                     echo(str_repeat('.', 0));
                     @ob_end_flush();
                     flush();

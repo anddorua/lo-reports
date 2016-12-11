@@ -22,8 +22,9 @@ end sub
 
 public sub out(message as string)
 	dim msg as new com.sun.star.logging.LogRecord
-	msg.Message = message
+	msg.Message = message &apos; &amp; Space(4096)
 	msg.Level = com.sun.star.logging.LogLevel.ALL
 	_handler.publish(msg)
+	_handler.flush()
 end sub
 </script:module>

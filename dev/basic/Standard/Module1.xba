@@ -210,4 +210,18 @@ sub testHash
 	
 	print h.getByKey(&quot;One&quot;).GetByKey(&quot;H1Two&quot;)
 end sub
+
+sub testOut
+   Dim oSFA As Object, oOutStream as Object, oOutText as Object
+   Dim sFilePath as String 
+   oSFA = createUNOService (&quot;com.sun.star.ucb.SimpleFileAccess&quot;) 
+   sFilePath = &quot;/tmp/stdout&quot;
+   
+   oOutStream = oSFA.openFileWrite(sFilePath) 
+   oOutText = createUNOService (&quot;com.sun.star.io.TextOutputStream&quot;) 
+   oOutText.setOutputStream(oOutStream) 
+
+   oOutText.WriteString(&quot;Hello World&quot;) 
+   oOutText.closeOutput()
+end sub
 </script:module>
