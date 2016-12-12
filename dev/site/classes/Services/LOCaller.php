@@ -40,7 +40,7 @@ class LOCaller
             , $exec_out
             , $exec_return_code
         );
-        $res = new \StdClass();
+        $res = new \stdClass();
         $res->out = implode('<br>',$exec_out);
         $res->code = $exec_return_code;
         return $res;
@@ -58,10 +58,10 @@ class LOCaller
 
         $process = proc_open('exec soffice --invisible --nodefault --norestore "macro:///Standard.Module1.starter()"', $descriptorspec, $pipes, $cwd, null);
 
-        $res = new \StdClass();
+        $res = new \stdClass();
         $res->out = 'no result';
         $res->code = 1000;
-        $res->error = '';
+        $res->error = 'unknown';
         if (is_resource($process)) {
             // $pipes теперь выглядит так:
             // 0 => записывающий обработчик, подключенный к дочернему stdin

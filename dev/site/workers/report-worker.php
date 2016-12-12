@@ -11,9 +11,12 @@ use Silex\Provider\MonologServiceProvider;
 require_once __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../include/bootstrap_app.php';
 
+/* @var $app Silex\Application */
 $app->register(new MonologServiceProvider(), array(
     'monolog.logfile' => __DIR__.'/../var/logs/worker.log',
 ));
+
+print_r($app['rabbit.config']);
 
 $connection = new AMQPStreamConnection(
     $app['rabbit.config']['server'],
@@ -30,6 +33,21 @@ $app['monolog']->info('Worker ready for messages.');
 $callback = function($msg) use($app) {
     $app['monolog']->debug('New task received: ' . $msg->body);
     $task = json_decode($msg->body);
+    if (is_null($task)) {
+        $app['monolog']->warning('Failed to decode JSON, ' . $msg->body . '. Process aborted.');
+        $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
+        return;
+    }
+    if (!isset($task->id)) {
+        $app['monolog']->warning('Task id is not set in message ' . $msg->body . '. Nothing to do.');
+        $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
+        return;
+    }
+    if (!isset($task->user_id)) {
+        $app['monolog']->warning('User id is not set in message ' . $msg->body . '. Nothing to do.');
+        $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
+        return;
+    }
 
     try {
         // make report
@@ -42,41 +60,52 @@ $callback = function($msg) use($app) {
         /* @var $dataProvider \App\ReportDataProviders\ReportDataProviderInterface */
         $dataProvider = new $config['provider']();
         $data = $dataProvider->getData();
-        $msg = $app['lo_caller']->startReport(
-            $app['reports.path'] . DIRECTORY_SEPARATOR . $app['reports.config'][$task->id]['file'],
-            "TestReport.xls",
-            "/home/application/reports",
+        $dataLines = array_reduce(array_values($data), function($carry, $dataSet){
+            return $carry + count($dataSet);
+        }, 0);
+        /* @var $reportNameGenerator App\Services\ReportNameGeneratorInterface */
+        $reportNameGenerator = new $config['nameGenerator'];
+        $reportFileName = $reportNameGenerator->generate($config);
+        $reportFolder = $app['reports.path']['done'] . DIRECTORY_SEPARATOR . $task->user_id . DIRECTORY_SEPARATOR . uniqid('', true);
+        \App\Services\MetaHandler::write($reportFolder, [ 'status' => 'started', 'progress' => 0 ]);
+        $reportResult = $app['lo_caller']->startReport(
+            $app['reports.path']['template'] . DIRECTORY_SEPARATOR . $app['reports.config'][$task->id]['file'],
+            $reportFileName,
+            $reportFolder,
             $data,
-            function ($line) use (&$progress, $time_start) {
-                $op_time = microtime(true);
-                echo 'time since begin:' . ($op_time - $time_start) . $line;
-                echo(str_repeat('.', 0));
-                @ob_end_flush();
-                flush();
-                $progress[] = $line;
+            function ($line) use ($reportFolder, $dataLines) {
+                if (preg_match('/\\{.*\\}/g', $line, $matches)) {
+                    $payload = json_decode($matches[0]);
+                    if (isset($payload->progress)) {
+                        \App\Services\MetaHandler::write(
+                            $reportFolder,
+                            [ 'status' => 'process', 'progress' => $payload->progress / $dataLines ]
+                        );
+                    }
+                }
             });
         $app['lo_caller']->removeDirs();
-
-
-
-
-
-
-
-
-        // todo
-        $result = true;
-        if($result) {
-            $app['monolog']->info('Result is: ' . 'true');
-            // store report
-            // todo
-            // mark as delivered in RabbitMQ
-            $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
+        if ($reportResult->code == 0) {
+            \App\Services\MetaHandler::write(
+                $reportFolder,
+                [ 'status' => 'success', 'progress' => 1 ]
+            );
+            $app['monolog']->info('Task succeed: ' . $msg->body);
         } else {
-            $app['monolog']->warning('Failed to decode JSON, will retry later');
+            \App\Services\MetaHandler::write(
+                $reportFolder,
+                [
+                    'status' => 'error',
+                    'progress' => 0,
+                    'code' => $reportResult->code,
+                    'message' => $reportResult->error
+                ]
+            );
+            $app['monolog']->warning('Task failed: ' . $msg->body . ' error:' . $reportResult->error);
         }
+        $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
     } catch(Exception $e) {
-        $app['monolog']->warning('Failed to make report, try later');
+        $app['monolog']->warning('Error occured during task: ' . $e->getMessage());
     }
 };
 

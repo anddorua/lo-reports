@@ -1,5 +1,6 @@
 #!/bin/bash
 export ALIAS_DOMAIN=reports.site.org
+export RMQ_SERVER=$ALIAS_DOMAIN
 docker run -d \
 	-v $(pwd)/dev/site:/app \
 	-v $(pwd)/dev/nginx/vhost.common.d:/opt/docker/etc/nginx/vhost.common.d \
@@ -14,6 +15,7 @@ docker run -d \
 	-e "ALIAS_DOMAIN=$ALIAS_DOMAIN" \
 	-e DISPLAY=$DISPLAY \
 	nginx-php-lo
+docker run -d --network container:reports-dev --name rabbit-dev rabbitmq:3
 # run -ti --rm \
 #	-v $(pwd)/dev/site:/app \
 #	-v $(pwd)/dev/tmp:/tmp \
