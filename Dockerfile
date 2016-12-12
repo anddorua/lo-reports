@@ -1,6 +1,7 @@
 FROM webdevops/php-nginx
 ENV DEBIAN_FRONTEND noninteractive
 ENV REPORT_DIR /home/application/reports
+ENV REPORT_DONE_DIR /home/application/reports-done
 # version 1:4.2.8-0ubuntu2
 
 RUN apt-get update \
@@ -34,3 +35,5 @@ RUN runuser -l application -c 'soffice --calc --headless --norestore "macro:///S
 COPY prod/basic/ /root/.config/libreoffice/4/user/basic/
 COPY prod/basic/ /home/application/.config/libreoffice/4/user/basic/
 COPY prod/reports/ $REPORT_DIR
+VOLUME $REPORT_DIR
+VOLUME $REPORT_DONE_DIR
