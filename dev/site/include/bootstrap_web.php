@@ -31,6 +31,10 @@ $app->register(new ServiceControllerServiceProvider());
 $app->register(new AssetServiceProvider());
 $app->register(new TwigServiceProvider());
 $app->register(new HttpFragmentServiceProvider());
+$app->register(new \App\ServiceProviders\JWTProvider());
+$app->register(new \App\ServiceProviders\UserProviderServiceProvider());
+
+
 /*$app->register(new JMSServiceProvider(), [
     'jms.metadata-dir' => __DIR__ . "/config/metadata",
 ]);*/

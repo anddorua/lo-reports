@@ -48,6 +48,11 @@ $callback = function($msg) use($app) {
         $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
         return;
     }
+    if (!isset($task->report_folder)) {
+        $app['monolog']->warning('Report folder is not set in message ' . $msg->body . '. Nothing to do.');
+        $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
+        return;
+    }
 
     try {
         // make report
@@ -66,7 +71,8 @@ $callback = function($msg) use($app) {
         /* @var $reportNameGenerator App\Services\ReportNameGeneratorInterface */
         $reportNameGenerator = new $config['nameGenerator'];
         $reportFileName = $reportNameGenerator->generate($config);
-        $reportFolder = $app['reports.path']['done'] . DIRECTORY_SEPARATOR . $task->user_id . DIRECTORY_SEPARATOR . uniqid('', true);
+        //$reportFolder = $app['reports.path']['done'] . DIRECTORY_SEPARATOR . $task->user_id . DIRECTORY_SEPARATOR . uniqid('', true);
+        $reportFolder = $task->report_folder;
         \App\Services\MetaHandler::write($reportFolder, [ 'status' => 'started', 'progress' => 0 ]);
         $reportResult = $app['lo_caller']->startReport(
             $app['reports.path']['template'] . DIRECTORY_SEPARATOR . $app['reports.config'][$task->id]['file'],
@@ -74,7 +80,7 @@ $callback = function($msg) use($app) {
             $reportFolder,
             $data,
             function ($line) use ($reportFolder, $dataLines) {
-                if (preg_match('/\\{.*\\}/g', $line, $matches)) {
+                if (preg_match('/\\{.*\\}/', $line, $matches)) {
                     $payload = json_decode($matches[0]);
                     if (isset($payload->progress)) {
                         \App\Services\MetaHandler::write(

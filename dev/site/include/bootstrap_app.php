@@ -17,6 +17,7 @@ $app->register(new LOCallerServiceProvider());
 
 $path = require('path.php');
 $app['reports.path'] = $path['reports'];
+$app->register(new \App\ServiceProviders\ReportDirGeneratorServiceProvider());
 $app['reports.config'] = require('reports.php');
 $app['rabbit.config'] = require('rabbit.php');
 

@@ -71,10 +71,15 @@ class ComposerStaticInitf5ab85d98ed651d9ed26c0c9ee1ffd7f
         array (
             'Psr\\Log\\' => 8,
             'Psr\\Cache\\' => 10,
+            'PhpAmqpLib\\' => 11,
         ),
         'M' => 
         array (
             'Monolog\\' => 8,
+        ),
+        'F' => 
+        array (
+            'Firebase\\JWT\\' => 13,
         ),
         'D' => 
         array (
@@ -260,9 +265,17 @@ class ComposerStaticInitf5ab85d98ed651d9ed26c0c9ee1ffd7f
         array (
             0 => __DIR__ . '/..' . '/psr/cache/src',
         ),
+        'PhpAmqpLib\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/php-amqplib/php-amqplib/PhpAmqpLib',
+        ),
         'Monolog\\' => 
         array (
             0 => __DIR__ . '/..' . '/monolog/monolog/src/Monolog',
+        ),
+        'Firebase\\JWT\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/firebase/php-jwt/src',
         ),
         'Doctrine\\Instantiator\\' => 
         array (

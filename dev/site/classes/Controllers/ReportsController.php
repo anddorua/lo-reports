@@ -10,6 +10,8 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Intl\Data\Bundle\Reader\JsonBundleReader;
+use PhpAmqpLib\Connection\AMQPStreamConnection;
+use PhpAmqpLib\Message\AMQPMessage;
 
 /**
  * Created by PhpStorm.
@@ -24,16 +26,72 @@ class ReportsController implements ControllerProviderInterface
         /** @var ControllerCollection $controllers  */
         $controllers = $app['controllers_factory'];
         $controllers->get('/', [$this, 'getIndex']);
-        $controllers->get('/{id}', [$this, 'getReport'])->assert('id', '[\w\d\_\-]+');
+        $controllers->get('/jwt', [$this, 'getJWTTest']);
+        $controllers->get('/status', [$this, 'getStatus']);
+        $controllers->post('/{id}', [$this, 'makeReport'])->assert('id', '[\w\d\_\-]+');
         /*                $controllers->post('/', [$this, 'postEntityUnified']);
                         $controllers->put('/{id}', [$this, 'putEntityUnified'])->assert('id', '\d+');
                         $controllers->delete('/{id}', [$this, 'deleteSingleUnified'])->assert('id', '\d+');*/
         return $controllers;
     }
 
-    public function getReport(Application $app, $id)
+    public function getStatus(Application $app, Request $request)
     {
 
+    }
+
+    public function getJWTTest(Application $app, Request $request)
+    {
+        $token = $app['jwt']->getTokenFromRequest($request);
+        if ($payload = $app['jwt']->payloadDecode($token)) {
+            $result = print_r(json_decode($payload), true);
+        } else {
+            $result = 'token not found/decoded' . $token;
+        }
+        return new Response("<html><body>Token is:<pre>$result</pre></body></html>");
+    }
+    private function getUserId(Application $app, Request $request)
+    {
+        $token = $app['jwt']->getTokenFromRequest($request);
+        if ($payload = $app['jwt']->payloadDecode($token)) {
+            return (json_decode($payload))->email;
+        } else {
+            return 'undefined_user';
+        }
+    }
+
+    public function makeReport(Application $app, Request $request, $id)
+    {
+        if (!isset($app['reports.config'][$id])) {
+            $app->abort(404, "Report '$id' not found.");
+        }
+        /* @var $dataProvider \App\ReportDataProviders\ReportDataProviderInterface */
+        $connection = new AMQPStreamConnection(
+            $app['rabbit.config']['server'],
+            $app['rabbit.config']['port'],
+            $app['rabbit.config']['login'],
+            $app['rabbit.config']['password']);
+        $channel = $connection->channel();
+
+        $channel->queue_declare($app['rabbit.config']['queue'], false, false, false, false);
+
+        $msgBody = new \stdClass();
+        $msgBody->id = $id;
+        $msgBody->user_id = $this->getUserId($app, $request);
+        $msgBody->report_folder = $app['reports.dir.done']->create($msgBody->user_id);
+        $task_id_pos = strrpos($msgBody->report_folder, DIRECTORY_SEPARATOR) + 1;
+        $result = new \stdClass();
+        $result->task_id = substr($msgBody->report_folder, $task_id_pos);
+
+        $msg = new AMQPMessage(json_encode($msgBody));
+        $channel->basic_publish($msg, '', $app['rabbit.config']['queue']);
+
+        $channel->close();
+        $connection->close();
+        return new JsonResponse($result);
+
+        // ======================================= old =======================
+        /*
         if ($id == 'slow') {
             ini_set('zlib.output_compression', false);
             $stream = function() use ($app) {
@@ -63,11 +121,11 @@ class ReportsController implements ControllerProviderInterface
         }
 
 
-        if (!isset($app['reports.config'][$id])) {
-            $app->abort(404, "Report '$id' not found.");
-        }
         $config = $app['reports.config'][$id];
+        /*
         /* @var $dataProvider \App\ReportDataProviders\ReportDataProviderInterface */
+
+        /*
         $dataProvider = new $config['provider']();
         $data = $dataProvider->getData();
         ini_set('zlib.output_compression', false);
@@ -98,16 +156,8 @@ class ReportsController implements ControllerProviderInterface
             'Cache-Control' => 'no-cache, must-revalidate',
             'X-Accel-Buffering' => 'no',
         ]);
+        */
 
-/*        return $app['twig']->render('reports/index.html.twig', ['reqObj' => [
-            'Message' => $msg->out,
-            'Code' => $msg->code,
-            'Error' => $msg->error,
-            'User' => $processUser['name'],
-            'Cwd' => $app['lo_caller']->getCwd(),
-            'Perm' => substr(sprintf('%o', fileperms(sys_get_temp_dir())), -4),
-            'Progress' => print_r($progress, true),
-        ]]);*/
     }
     public function getIndex(Application $app, Request $request)
     {

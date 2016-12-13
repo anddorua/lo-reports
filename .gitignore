@@ -1,2 +1,3 @@
 dev/tmp/*
 /dev/reports/tmp_collector.ods
+/dev/reports-done/*

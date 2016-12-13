@@ -9,6 +9,7 @@
       <excludeFolder url="file://$MODULE_DIR$/dev/site/vendor/doctrine/cache" />
       <excludeFolder url="file://$MODULE_DIR$/dev/site/vendor/doctrine/instantiator" />
       <excludeFolder url="file://$MODULE_DIR$/dev/site/vendor/doctrine/lexer" />
+      <excludeFolder url="file://$MODULE_DIR$/dev/site/vendor/firebase/php-jwt" />
       <excludeFolder url="file://$MODULE_DIR$/dev/site/vendor/jms/metadata" />
       <excludeFolder url="file://$MODULE_DIR$/dev/site/vendor/jms/parser-lib" />
       <excludeFolder url="file://$MODULE_DIR$/dev/site/vendor/jms/serializer" />
@@ -107,6 +108,7 @@
           <root url="file://$MODULE_DIR$/dev/site/vendor/doctrine/cache" />
           <root url="file://$MODULE_DIR$/dev/site/vendor/doctrine/instantiator" />
           <root url="file://$MODULE_DIR$/dev/site/vendor/doctrine/lexer" />
+          <root url="file://$MODULE_DIR$/dev/site/vendor/firebase/php-jwt" />
           <root url="file://$MODULE_DIR$/dev/site/vendor/jms/metadata" />
           <root url="file://$MODULE_DIR$/dev/site/vendor/jms/parser-lib" />
           <root url="file://$MODULE_DIR$/dev/site/vendor/jms/serializer" />
@@ -189,6 +191,7 @@
           <root url="file://$MODULE_DIR$/dev/site/vendor/doctrine/cache" />
           <root url="file://$MODULE_DIR$/dev/site/vendor/doctrine/instantiator" />
           <root url="file://$MODULE_DIR$/dev/site/vendor/doctrine/lexer" />
+          <root url="file://$MODULE_DIR$/dev/site/vendor/firebase/php-jwt" />
           <root url="file://$MODULE_DIR$/dev/site/vendor/jms/metadata" />
           <root url="file://$MODULE_DIR$/dev/site/vendor/jms/parser-lib" />
           <root url="file://$MODULE_DIR$/dev/site/vendor/jms/serializer" />
