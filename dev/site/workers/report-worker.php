@@ -14,9 +14,8 @@ require __DIR__ . '/../include/bootstrap_app.php';
 /* @var $app Silex\Application */
 $app->register(new MonologServiceProvider(), array(
     'monolog.logfile' => __DIR__.'/../var/logs/worker.log',
+    'monolog.level' => (getenv('LOG_LEVEL') !== false ? getenv('LOG_LEVEL') : 'INFO'),
 ));
-
-print_r($app['rabbit.config']);
 
 $connection = new AMQPStreamConnection(
     $app['rabbit.config']['server'],
@@ -28,7 +27,12 @@ $channel = $connection->channel();
 
 $channel->queue_declare($app['rabbit.config']['queue'], false, false, false, false);
 
-$app['monolog']->info('Worker ready for messages.');
+$app['monolog']->info('Worker ready for messages with:'
+    . ' server=' . $app['rabbit.config']['server']
+    . ' port=' . $app['rabbit.config']['port']
+    . ' login=' . $app['rabbit.config']['login']
+    . ' password=' . $app['rabbit.config']['password']
+);
 
 $callback = function($msg) use($app) {
     $app['monolog']->debug('New task received: ' . $msg->body);
@@ -73,19 +77,25 @@ $callback = function($msg) use($app) {
         $reportFileName = $reportNameGenerator->generate($config);
         //$reportFolder = $app['reports.path']['done'] . DIRECTORY_SEPARATOR . $task->user_id . DIRECTORY_SEPARATOR . uniqid('', true);
         $reportFolder = $task->report_folder;
-        \App\Services\MetaHandler::write($reportFolder, [ 'status' => 'started', 'progress' => 0 ]);
+        \App\Services\MetaHandler::write($reportFolder, [ 'type' => $task->id, 'status' => 'started', 'progress' => 0 ]);
+        $app['monolog']->debug('Report going to start processing with:'
+            . ' report file=' . $app['reports.path']['template'] . DIRECTORY_SEPARATOR . $app['reports.config'][$task->id]['file']
+            . ' result file=' . $reportFileName
+            . ' folder=' . $reportFolder
+        );
         $reportResult = $app['lo_caller']->startReport(
             $app['reports.path']['template'] . DIRECTORY_SEPARATOR . $app['reports.config'][$task->id]['file'],
             $reportFileName,
             $reportFolder,
             $data,
-            function ($line) use ($reportFolder, $dataLines) {
+            function ($line) use ($reportFolder, $dataLines, $task, $app) {
+                $app['monolog']->debug('LibreOffice sent message: \'' . $line . '\'');
                 if (preg_match('/\\{.*\\}/', $line, $matches)) {
                     $payload = json_decode($matches[0]);
                     if (isset($payload->progress)) {
                         \App\Services\MetaHandler::write(
                             $reportFolder,
-                            [ 'status' => 'process', 'progress' => $payload->progress / $dataLines ]
+                            [ 'type' => $task->id, 'status' => 'process', 'progress' => $payload->progress / $dataLines ]
                         );
                     }
                 }
@@ -94,7 +104,7 @@ $callback = function($msg) use($app) {
         if ($reportResult->code == 0) {
             \App\Services\MetaHandler::write(
                 $reportFolder,
-                [ 'status' => 'success', 'progress' => 1 ]
+                [ 'type' => $task->id, 'status' => 'success', 'progress' => 1 ]
             );
             $app['monolog']->info('Task succeed: ' . $msg->body);
         } else {

@@ -20,7 +20,11 @@ class MetaHandler
 
     public static function read($folder)
     {
-        $content = file_get_contents($folder . DIRECTORY_SEPARATOR . 'meta.json');
+        $fileName = $folder . DIRECTORY_SEPARATOR . 'meta.json';
+        if (!file_exists($fileName)) {
+            return false;
+        }
+        $content = file_get_contents($fileName);
         if (false === $content) {
             return false;
         } else {

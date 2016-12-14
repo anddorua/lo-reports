@@ -8,8 +8,8 @@ namespace App\Services;
  */
 class LOCaller
 {
-    const max_utime = 600 * 1000000; // after that time unfinished service will be killed
-    const progress_watchdog_utime = 600 * 1000000; // after that time service that do not receive log messages will be killed
+    const max_utime = 180 * 1000000; // after that time unfinished service will be killed
+    const progress_watchdog_utime = 10 * 1000000; // after that time service that do not send log messages will be killed
     const wait_quant = 50000; // wait time quant
 
     private $reportDir;
@@ -147,7 +147,7 @@ class LOCaller
      * @param $data array mixed ['table_name' => [ [ 'key1' => val1, 'key2' => val2 ], [ 'key1' => val3, 'key2' => val4 ], ... ]]
      * @return \StdClass
      */
-    public function startReport($reportFileName, $resultReportName, $dirToCopyResult, $data, callable $progress)
+    public function startReport($reportFileName, $resultReportName, $dirToCopyResult, $data,    callable $progress)
     {
         $this->cwd = $this->createDirs();
         $workReportFile = $this->prepareFiles($reportFileName, $data);
@@ -168,7 +168,7 @@ class LOCaller
             , $this->cwd
             , null);
 
-        $res = new \StdClass();
+        $res = new \stdClass();
         $res->out = '';
         $res->code = 1000; // just magic number to easily find if it is occured
         $res->error = '';
@@ -197,7 +197,8 @@ class LOCaller
                     if (($time_passed >= self::max_utime || $log_watchdog >= self::progress_watchdog_utime) && !$wait_for_terminate) {
                         proc_terminate($process);
                         $wait_for_terminate = true;
-                        $res->error = 'forced termination';
+                        $res->error = 'forced termination on '
+                            . ($log_watchdog >= self::progress_watchdog_utime ? ' watchdog' : 'max process time');
                     }
                     usleep(self::wait_quant);
                     $time_passed += self::wait_quant;

@@ -6,12 +6,10 @@ use Silex\Application;
 use Silex\Api\ControllerProviderInterface;
 use Silex\ControllerCollection;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Intl\Data\Bundle\Reader\JsonBundleReader;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
+use \App\Services\MetaHandler;
 
 /**
  * Created by PhpStorm.
@@ -26,30 +24,78 @@ class ReportsController implements ControllerProviderInterface
         /** @var ControllerCollection $controllers  */
         $controllers = $app['controllers_factory'];
         $controllers->get('/', [$this, 'getIndex']);
-        $controllers->get('/jwt', [$this, 'getJWTTest']);
         $controllers->get('/status', [$this, 'getStatus']);
+        $controllers->get('/status/{id}', [$this, 'getStatusById'])->assert('id', '[\d\.]+');
+        $controllers->get('/file/{dir}/{fileName}', [$this, 'getFile']);
         $controllers->post('/{id}', [$this, 'makeReport'])->assert('id', '[\w\d\_\-]+');
-        /*                $controllers->post('/', [$this, 'postEntityUnified']);
-                        $controllers->put('/{id}', [$this, 'putEntityUnified'])->assert('id', '\d+');
-                        $controllers->delete('/{id}', [$this, 'deleteSingleUnified'])->assert('id', '\d+');*/
         return $controllers;
+    }
+
+    public function getFile(Application $app, Request $request, $dir, $fileName)
+    {
+        $app['monolog']->debug('$dir: ' . $dir);
+        $app['monolog']->debug('$fileName: ' . $fileName);
+        $fullName = $app['reports.path']['done']
+            . DIRECTORY_SEPARATOR . $this->getUserId($app, $request)
+            . DIRECTORY_SEPARATOR . $dir
+            . DIRECTORY_SEPARATOR . $fileName;
+        if (!file_exists($fullName)) {
+            $app->abort(404, "File " . $dir . DIRECTORY_SEPARATOR . $fileName . " not found.");
+        }
+        return $app->sendFile($fullName);
     }
 
     public function getStatus(Application $app, Request $request)
     {
+        $result = [];
+        $userDir = $app['reports.path']['done'] . DIRECTORY_SEPARATOR . $this->getUserId($app, $request);
+        if (is_dir($userDir)) {
+            $userContent = scandir($userDir);
+            foreach($userContent as $dirName) {
+                $dirItem = $userDir . DIRECTORY_SEPARATOR . $dirName;
+                $app['monolog']->debug('$dirItem: ' . $dirItem);
 
-    }
-
-    public function getJWTTest(Application $app, Request $request)
-    {
-        $token = $app['jwt']->getTokenFromRequest($request);
-        if ($payload = $app['jwt']->payloadDecode($token)) {
-            $result = print_r(json_decode($payload), true);
-        } else {
-            $result = 'token not found/decoded' . $token;
+                if ($dirName == '.' || $dirName == '..' || !is_dir($dirItem)) {
+                    continue;
+                }
+                if (($meta = MetaHandler::read($dirItem)) === false) {
+                    continue;
+                }
+                $item['id'] = $dirName;
+                $item['meta'] = $meta;
+                $item['files'] = $this->getDirFilesUrl($app, $dirItem);
+                $result[] = $item;
+            }
         }
-        return new Response("<html><body>Token is:<pre>$result</pre></body></html>");
+        return new JsonResponse($result);
     }
+
+    public function getStatusById(Application $app, Request $request, $id)
+    {
+        $dirItem = $app['reports.path']['done'] . DIRECTORY_SEPARATOR . $this->getUserId($app, $request) . DIRECTORY_SEPARATOR . $id;
+        if (($meta = MetaHandler::read($dirItem)) === false) {
+            $app['monolog']->debug('meta not read from ' . $dirItem);
+            $app->abort(404, "Item '$id' not found.");
+        }
+        $item['id'] = $id;
+        $item['meta'] = $meta;
+        $item['files'] = $this->getDirFilesUrl($app, $dirItem);
+        return new JsonResponse($item);
+    }
+
+    private function getDirFilesUrl(Application $app, $dir)
+    {
+        $result = [];
+        $dirContent = scandir($dir);
+        foreach($dirContent as $fileName) {
+            if ($fileName == '.' || $fileName == '..' || $fileName == 'meta.json' || is_dir($dir . DIRECTORY_SEPARATOR . $fileName)) {
+                continue;
+            }
+            $result[] = $app['url']->report($dir . DIRECTORY_SEPARATOR . $fileName);
+        }
+        return $result;
+    }
+
     private function getUserId(Application $app, Request $request)
     {
         $token = $app['jwt']->getTokenFromRequest($request);
@@ -83,83 +129,20 @@ class ReportsController implements ControllerProviderInterface
         $result = new \stdClass();
         $result->task_id = substr($msgBody->report_folder, $task_id_pos);
 
+        MetaHandler::write(
+            $msgBody->report_folder,
+            [ 'type' => $msgBody->id, 'status' => 'pending', 'progress' => 0 ]
+        );
+
         $msg = new AMQPMessage(json_encode($msgBody));
         $channel->basic_publish($msg, '', $app['rabbit.config']['queue']);
 
         $channel->close();
         $connection->close();
         return new JsonResponse($result);
-
-        // ======================================= old =======================
-        /*
-        if ($id == 'slow') {
-            ini_set('zlib.output_compression', false);
-            $stream = function() use ($app) {
-                $string_length = 0;
-                echo 'Begin test with an ' . $string_length . ' character string...<br />' . "\r\n";
-                $time_start = microtime(true);
-
-                // For 3 seconds, repeat the string.
-                for ($i = 0; $i < 10; $i++) {
-                    $string = str_repeat('.', $string_length);
-                    echo 'time since begin:' . (microtime(true) - $time_start);
-                    echo $string . '<br />' . "\r\n";
-                    echo $i . '<br />' . "\r\n";
-                    @ob_end_flush();
-                    flush();
-                    sleep(1);
-                }
-
-                echo 'End test.<br />' . "\r\n";
-            };
-
-            return $app->stream($stream, 200, [
-                'Content-Type' => 'application/octet-stream',
-                'Cache-Control' => 'no-cache, must-revalidate',
-                'X-Accel-Buffering' => 'no',
-            ]);
-        }
-
-
-        $config = $app['reports.config'][$id];
-        /*
-        /* @var $dataProvider \App\ReportDataProviders\ReportDataProviderInterface */
-
-        /*
-        $dataProvider = new $config['provider']();
-        $data = $dataProvider->getData();
-        ini_set('zlib.output_compression', false);
-        $stream = function() use ($app, $data) {
-
-            ini_set('zlib.output_compression', false);
-            $time_start = microtime(true);
-            $progress = [];
-            $msg = $app['lo_caller']->startReport(
-                "/home/application/reports/report1.ods",
-                "TestReport.xls",
-                "/home/application/reports",
-                $data,
-                function ($line) use (&$progress, $time_start) {
-                    $op_time = microtime(true);
-                    echo 'time since begin:' . ($op_time - $time_start) . $line;
-                    echo(str_repeat('.', 0));
-                    @ob_end_flush();
-                    flush();
-                    $progress[] = $line;
-                });
-            $app['lo_caller']->removeDirs();
-        };
-
-        return $app->stream($stream, 200, [
-            'Content-Type' => 'application/octet-stream',
-            //'Content-Type' => 'text/html',
-            'Cache-Control' => 'no-cache, must-revalidate',
-            'X-Accel-Buffering' => 'no',
-        ]);
-        */
-
     }
-    public function getIndex(Application $app, Request $request)
+
+    public function getIndex(Application $app)
     {
         $dataToShow = [];
         foreach($app['reports.config'] as $key => $reportEntry) {
@@ -168,9 +151,6 @@ class ReportsController implements ControllerProviderInterface
             $result->description = $reportEntry['description'];
             $dataToShow[] = $result;
         }
-/*        return new Response($app['jms']->serialize($dataToShow, 'json'), 200, [
-           'Content-Type' => $request->getMimeType('json'),
-        ]);*/
         return new JsonResponse($dataToShow);
     }
 }

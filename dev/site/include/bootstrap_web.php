@@ -33,6 +33,9 @@ $app->register(new TwigServiceProvider());
 $app->register(new HttpFragmentServiceProvider());
 $app->register(new \App\ServiceProviders\JWTProvider());
 $app->register(new \App\ServiceProviders\UserProviderServiceProvider());
+$app->register(new \App\ServiceProviders\UrlGeneratorServiceProvider(), [
+    'url.report.file' => '/reports/file'
+]);
 
 
 /*$app->register(new JMSServiceProvider(), [
@@ -44,12 +47,12 @@ $app['twig'] = $app->extend('twig', function ($twig) {
 });
 $app['twig.path'] = array(__DIR__.'/../templates');
 $app['twig.options'] = array('cache' => __DIR__.'/../var/cache/twig');
+$app->register(new MonologServiceProvider(), array(
+    'monolog.logfile' => __DIR__.'/../var/logs/silex_dev.log',
+    'monolog.level' => (getenv('LOG_LEVEL') !== false ? getenv('LOG_LEVEL') : 'INFO'),
+));
 
 if ($app['debug']) {
-    $app->register(new MonologServiceProvider(), array(
-        'monolog.logfile' => __DIR__.'/../var/logs/silex_dev.log',
-    ));
-
     $app->register(new WebProfilerServiceProvider(), array(
         'profiler.cache_dir' => __DIR__.'/../var/cache/profiler',
     ));

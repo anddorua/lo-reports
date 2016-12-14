@@ -1,6 +1,6 @@
 <?php
 
-define('DEBUG', true);
+define('DEBUG', (getenv('LOG_LEVEL') !== false ? getenv('LOG_LEVEL') == 'DEBUG' : false));
 
 ini_set('display_errors', DEBUG ? 1 : 0);
 

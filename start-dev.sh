@@ -10,6 +10,7 @@ docker run -d \
 	-v $(pwd)/dev/basic:/root/.config/libreoffice/4/user/basic \
 	-v $(pwd)/dev/reports:/home/application/reports \
 	-v $(pwd)/dev/reports-done:/home/application/reports-done \
+	-v $(pwd)/dev/supervisor/conf:/etc/supervisor/conf.d \
 	-v /tmp/.X11-unix:/tmp/.X11-unix \
 	-v $HOME/.Xauthority:/root/.Xauthority \
 	-p 8080:80 \
@@ -20,9 +21,11 @@ docker run -d \
 	-e REPORT_DIR=$REPORT_DIR \
 	-e REPORT_DONE_DIR=$REPORT_DONE_DIR \
 	-e RMQ_SERVER=localhost \
+	-e LOG_LEVEL=DEBUG \
 	nginx-php-lo
 docker run -d --network container:reports-dev --name rabbit-dev rabbitmq:3
 # run -ti --rm \
 #	-v $(pwd)/dev/site:/app \
 #	-v $(pwd)/dev/tmp:/tmp \
 #	nginx-php-lo /bin/bash
+#	-v $(pwd)/dev/supervisor/conf/report-workers.conf:/opt/docker/etc/supervisor.d/report-workers.conf \
